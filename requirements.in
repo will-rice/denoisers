@@ -1,0 +1,9 @@
+black
+isort
+pip-tools
+flake8-black
+mypy
+torch
+torchaudio
+torchvision
+pytorch-lightning
