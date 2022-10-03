@@ -6,6 +6,7 @@ import torch
 import torchaudio
 from torch import Tensor, nn
 from torch.nn import functional as F
+from torchmetrics import SignalNoiseRatio
 
 
 class DoubleConv(nn.Module):
@@ -118,6 +119,7 @@ class UNet(pl.LightningModule):
             pad_mode="reflect",
         )
         self.intensity_dist = torch.distributions.uniform.Uniform(0.0, 10.0)
+        self.snr = SignalNoiseRatio()
 
         self.inc = DoubleConv(n_channels, 64)
         self.down1 = DownSampleLayer(64, 128)
@@ -156,7 +158,7 @@ class UNet(pl.LightningModule):
         noisy = spectrogram + noise
 
         noise_pred = self(noisy)
-        loss = F.l1_loss(noise_pred, noise)
+        loss = F.mse_loss(noise_pred, noise)
         self.log("train_loss", loss)
 
         return loss
@@ -172,8 +174,12 @@ class UNet(pl.LightningModule):
         noisy = spectrogram + noise
 
         noise_pred = self(noisy)
-        loss = F.l1_loss(noise_pred, noise)
+        loss = F.mse_loss(noise_pred, noise)
+
+        snr = self.snr(noisy - noise_pred, spectrogram)
+
         self.log("val_loss", loss)
+        self.log("snr", snr)
 
         return loss
 
@@ -186,8 +192,12 @@ class UNet(pl.LightningModule):
         noisy = spectrogram + noise
 
         noise_pred = self(noisy)
-        loss = F.l1_loss(noise_pred, noise)
+        loss = F.mse_loss(noise_pred, noise)
+
+        snr = self.snr(noisy - noise_pred, spectrogram)
+
         self.log("test_loss", loss)
+        self.log("snr", snr)
 
         return loss
 

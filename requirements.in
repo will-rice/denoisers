@@ -7,3 +7,5 @@ torch
 torchaudio
 torchvision
 pytorch-lightning
+wandb
+torchmetrics

@@ -15,13 +15,17 @@ async-timeout==4.0.2
 attrs==22.1.0
     # via aiohttp
 black==22.8.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   flake8-black
 build==0.8.0
     # via pip-tools
 cachetools==5.2.0
     # via google-auth
 certifi==2022.9.24
-    # via requests
+    # via
+    #   requests
+    #   sentry-sdk
 charset-normalizer==2.1.1
     # via
     #   aiohttp
@@ -30,12 +34,23 @@ click==8.1.3
     # via
     #   black
     #   pip-tools
+    #   wandb
+docker-pycreds==0.4.0
+    # via wandb
+flake8==5.0.4
+    # via flake8-black
+flake8-black==0.3.3
+    # via -r requirements.in
 frozenlist==1.3.1
     # via
     #   aiohttp
     #   aiosignal
 fsspec[http]==2022.8.2
     # via pytorch-lightning
+gitdb==4.0.9
+    # via gitpython
+gitpython==3.1.27
+    # via wandb
 google-auth==2.12.0
     # via
     #   google-auth-oauthlib
@@ -54,6 +69,8 @@ markdown==3.4.1
     # via tensorboard
 markupsafe==2.1.1
     # via werkzeug
+mccabe==0.7.0
+    # via flake8
 multidict==6.0.2
     # via
     #   aiohttp
@@ -79,6 +96,8 @@ packaging==21.3
     #   torchmetrics
 pathspec==0.10.1
     # via black
+pathtools==0.1.2
+    # via wandb
 pep517==0.13.0
     # via build
 pillow==9.2.0
@@ -87,36 +106,60 @@ pip-tools==6.8.0
     # via -r requirements.in
 platformdirs==2.5.2
     # via black
+promise==2.3
+    # via wandb
 protobuf==3.19.6
-    # via tensorboard
+    # via
+    #   tensorboard
+    #   wandb
+psutil==5.9.2
+    # via wandb
 pyasn1==0.4.8
     # via
     #   pyasn1-modules
     #   rsa
 pyasn1-modules==0.2.8
     # via google-auth
+pycodestyle==2.9.1
+    # via flake8
 pydeprecate==0.3.2
     # via pytorch-lightning
+pyflakes==2.5.0
+    # via flake8
 pyparsing==3.0.9
     # via packaging
 pytorch-lightning==1.7.7
     # via -r requirements.in
 pyyaml==6.0
-    # via pytorch-lightning
+    # via
+    #   pytorch-lightning
+    #   wandb
 requests==2.28.1
     # via
     #   fsspec
     #   requests-oauthlib
     #   tensorboard
     #   torchvision
+    #   wandb
 requests-oauthlib==1.3.1
     # via google-auth-oauthlib
 rsa==4.9
     # via google-auth
+sentry-sdk==1.9.9
+    # via wandb
+setproctitle==1.3.2
+    # via wandb
+shortuuid==1.0.9
+    # via wandb
 six==1.16.0
     # via
+    #   docker-pycreds
     #   google-auth
     #   grpcio
+    #   promise
+    #   wandb
+smmap==5.0.0
+    # via gitdb
 tensorboard==2.10.1
     # via pytorch-lightning
 tensorboard-data-server==0.6.1
@@ -127,6 +170,7 @@ tomli==2.0.1
     # via
     #   black
     #   build
+    #   flake8-black
     #   mypy
     #   pep517
 torch==1.12.1
@@ -151,7 +195,11 @@ typing-extensions==4.3.0
     #   torch
     #   torchvision
 urllib3==1.26.12
-    # via requests
+    # via
+    #   requests
+    #   sentry-sdk
+wandb==0.13.3
+    # via -r requirements.in
 werkzeug==2.2.2
     # via tensorboard
 wheel==0.37.1
