@@ -151,14 +151,11 @@ class UNet(pl.LightningModule):
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
-        spectrogram = self.transform(batch).unsqueeze(1)
-
-        intensity = self.intensity_dist.sample().to(spectrogram.device)
-        noise = torch.randn_like(spectrogram) * intensity
-        noisy = spectrogram + noise
+        audio, noisy, noise = batch
 
         noise_pred = self(noisy)
         loss = F.mse_loss(noise_pred, noise)
+
         self.log("train_loss", loss)
 
         return loss
@@ -167,16 +164,12 @@ class UNet(pl.LightningModule):
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
-        spectrogram = self.transform(batch).unsqueeze(1)
-
-        intensity = self.intensity_dist.sample().to(spectrogram.device)
-        noise = torch.randn_like(spectrogram) * intensity
-        noisy = spectrogram + noise
+        audio, noisy, noise = batch
 
         noise_pred = self(noisy)
         loss = F.mse_loss(noise_pred, noise)
 
-        snr = self.snr(noisy - noise_pred, spectrogram)
+        snr = self.snr(noisy - noise_pred, audio)
 
         self.log("val_loss", loss)
         self.log("snr", snr)
@@ -185,16 +178,12 @@ class UNet(pl.LightningModule):
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
-        spectrogram = self.transform(batch).unsqueeze(1)
-
-        intensity = self.intensity_dist.sample().to(spectrogram.device)
-        noise = torch.randn_like(spectrogram) * intensity
-        noisy = spectrogram + noise
+        audio, noisy, noise = batch
 
         noise_pred = self(noisy)
         loss = F.mse_loss(noise_pred, noise)
 
-        snr = self.snr(noisy - noise_pred, spectrogram)
+        snr = self.snr(noisy - noise_pred, audio)
 
         self.log("test_loss", loss)
         self.log("snr", snr)
