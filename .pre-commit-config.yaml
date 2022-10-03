@@ -6,6 +6,12 @@ repos:
       - id: end-of-file-fixer
       - id: trailing-whitespace
       - id: check-merge-conflict
+      - id: requirements-txt-fixer
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: "cafd550"
+    hooks:
+      - id: prettier
+        files: \.(css|less|scss|json|yaml|yml|html|md|mdx|js|jsx|ts|tsx|graphql|gql|vue|svelte|toml)$
   - repo: local
     hooks:
       - id: black
@@ -30,3 +36,15 @@ repos:
         entry: mypy src
         pass_filenames: false
         always_run: true
+      - id: pytest
+        name: pytest
+        language: system
+        entry: python -m pytest
+        pass_filenames: false
+        always_run: true
+      - id: pydocstyle
+        name: pydocstyle
+        description: pydocstyle is a static analysis tool for checking compliance with Python docstring conventions.
+        entry: pydocstyle --convention=google --add-ignore=D107
+        language: python
+        types: [python]
