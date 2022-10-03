@@ -154,7 +154,7 @@ class UNet(pl.LightningModule):
         audio, noisy, noise = batch
 
         noise_pred = self(noisy)
-        loss = F.mse_loss(noise_pred, noise)
+        loss = F.mse_loss(noise_pred, audio)
 
         self.log("train_loss", loss)
 
@@ -167,7 +167,7 @@ class UNet(pl.LightningModule):
         audio, noisy, noise = batch
 
         noise_pred = self(noisy)
-        loss = F.mse_loss(noise_pred, noise)
+        loss = F.mse_loss(noise_pred, audio)
 
         snr = self.snr(noisy - noise_pred, audio)
 
@@ -181,7 +181,7 @@ class UNet(pl.LightningModule):
         audio, noisy, noise = batch
 
         noise_pred = self(noisy)
-        loss = F.mse_loss(noise_pred, noise)
+        loss = F.mse_loss(noise_pred, audio)
 
         snr = self.snr(noisy - noise_pred, audio)
 
