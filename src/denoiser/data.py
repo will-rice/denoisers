@@ -148,12 +148,12 @@ class LibriTTSDataModule(pl.LightningDataModule):
             noisy_specs.append(noisy_spec)
 
         return Sample(
-            audio=torch.stack(audio),
+            audio=torch.stack(audio).unsqueeze(1),
             audio_lengths=audio_lengths,
-            noisy_audio=torch.stack(noisy_audio),
-            specs=torch.stack(specs),
+            noisy_audio=torch.stack(noisy_audio).unsqueeze(1),
+            specs=torch.stack(specs).unsqueeze(1),
             spec_lengths=spec_lengths,
-            noisy_specs=torch.stack(noisy_specs),
+            noisy_specs=torch.stack(noisy_specs).unsqueeze(1),
         )
 
     def get_spectrogram(self, inputs: Tensor) -> Tensor:
