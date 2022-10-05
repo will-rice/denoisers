@@ -219,8 +219,8 @@ class UNet(pl.LightningModule):
 
         snr = self.snr(noisy - logits, mag_stft)
 
-        self.log("train_loss", loss)
-        self.log("train_snr", snr)
+        self.log("val_loss", loss)
+        self.log("val_snr", snr)
 
         wandb.log(
             {
