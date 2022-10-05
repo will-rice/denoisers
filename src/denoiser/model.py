@@ -1,6 +1,7 @@
 """Adapted from https://github.com/milesial/Pytorch-UNet."""
 from typing import Any, Dict, Optional, Union
 
+import matplotlib.pyplot as plt
 import pytorch_lightning as pl
 import torch
 from torch import Tensor, nn
@@ -218,21 +219,14 @@ class UNet(pl.LightningModule):
 
         snr = self.snr(noisy - logits, mag_stft)
 
-        self.log("val_loss", loss)
-        self.log("val_snr", snr)
+        self.log("train_loss", loss)
+        self.log("train_snr", snr)
 
         wandb.log(
             {
-                "val_clean": wandb.Audio(
-                    batch.audio.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
-                ),
-                "val_noisy": wandb.Audio(
-                    noisy.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
-                ),
-                "val_pred": wandb.Audio(
-                    (noisy - logits).squeeze(1).cpu().detach().numpy()[0],
-                    sample_rate=24000,
-                ),
+                "test_clean": plt.imshow(mag_stft, origin="lower", aspect="auto"),
+                "test_noisy": plt.imshow(noisy, origin="lower", aspect="auto"),
+                "test_pred": plt.imshow(noisy - logits, origin="lower", aspect="auto"),
             }
         )
 
@@ -242,11 +236,19 @@ class UNet(pl.LightningModule):
         """Test step."""
         noisy = self.noiser(batch.audio)
 
-        logits = self.infer(noisy)
-        clean = noisy - logits
+        noisy_stft = torch.stft(
+            noisy,
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            return_complex=True,
+        ).unsqueeze(1)
+        noisy_mag_stft = torch.abs(noisy_stft)
 
-        loss = F.mse_loss(clean, batch.audio)
-        snr = self.snr(noisy - logits, batch.audio)
+        pred_audio = self.infer(noisy_mag_stft)
+        loss = F.mse_loss(pred_audio, batch.audio)
+
+        snr = self.snr(pred_audio, batch.audio)
 
         self.log("test_loss", loss)
         self.log("test_snr", snr)
@@ -260,7 +262,7 @@ class UNet(pl.LightningModule):
                     noisy.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
                 ),
                 "test_pred": wandb.Audio(
-                    (noisy - logits).squeeze(1).cpu().detach()[0].numpy(),
+                    pred_audio.squeeze(1).cpu().detach().numpy()[0],
                     sample_rate=24000,
                 ),
             }
