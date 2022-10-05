@@ -180,20 +180,11 @@ class UNet(pl.LightningModule):
         self, batch: Sample, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
-        stft = torch.stft(
-            batch.audio,
-            n_fft=self.n_fft,
-            win_length=self.win_length,
-            hop_length=self.hop_length,
-            return_complex=True,
-        ).unsqueeze(1)
-        mag_stft = torch.abs(stft).log().maximum(torch.tensor(1e-5))
-        noisy = self.noiser(mag_stft)
 
-        logits = self(noisy)
-        loss = F.l1_loss(logits, noisy - mag_stft)
+        logits = self(batch.noisy_specs)
+        loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
 
-        snr = self.snr(noisy - logits, mag_stft)
+        snr = self.snr(batch.noisy_specs - logits, batch.specs)
 
         self.log("train_loss", loss)
         self.log("train_snr", snr)
@@ -204,63 +195,41 @@ class UNet(pl.LightningModule):
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
-        stft = torch.stft(
-            batch.audio,
-            n_fft=self.n_fft,
-            win_length=self.win_length,
-            hop_length=self.hop_length,
-            return_complex=True,
-        ).unsqueeze(1)
-        mag_stft = torch.abs(stft).log().maximum(torch.tensor(1e-5))
-        noisy = self.noiser(mag_stft)
-
-        logits = self(noisy)
-        loss = F.l1_loss(logits, noisy - mag_stft)
-
-        snr = self.snr(noisy - logits, mag_stft)
+        logits = self(batch.noisy_specs)
+        loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
+        snr = self.snr(batch.noisy_specs - logits, batch.specs)
 
         self.log("val_loss", loss)
         self.log("val_snr", snr)
 
         wandb.log(
-            {"images": wandb.Image(plot_image_batch(mag_stft, noisy, noisy - logits))}
+            {
+                "val_images": wandb.Image(
+                    plot_image_batch(
+                        batch.specs, batch.noisy_specs, batch.noisy_specs - logits
+                    )
+                )
+            }
         )
 
         return loss
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
-        noisy = self.noiser(batch.audio)
-
-        noisy_stft = torch.stft(
-            noisy,
-            n_fft=self.n_fft,
-            win_length=self.win_length,
-            hop_length=self.hop_length,
-            return_complex=True,
-        ).unsqueeze(1)
-        noisy_mag_stft = torch.abs(noisy_stft).log().maximum(torch.tensor(1e-5))
-
-        pred_audio = self.infer(noisy_mag_stft)
-        loss = F.l1_loss(pred_audio, batch.audio)
-
-        snr = self.snr(pred_audio, batch.audio)
+        logits = self(batch.noisy_specs)
+        loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
+        snr = self.snr(batch.noisy_specs - logits, batch.specs)
 
         self.log("test_loss", loss)
         self.log("test_snr", snr)
 
         wandb.log(
             {
-                "test_clean": wandb.Audio(
-                    batch.audio.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
-                ),
-                "test_noisy": wandb.Audio(
-                    noisy.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
-                ),
-                "test_pred": wandb.Audio(
-                    pred_audio.squeeze(1).cpu().detach().numpy()[0],
-                    sample_rate=24000,
-                ),
+                "test_images": wandb.Image(
+                    plot_image_batch(
+                        batch.specs, batch.noisy_specs, batch.noisy_specs - logits
+                    )
+                )
             }
         )
 
@@ -268,4 +237,4 @@ class UNet(pl.LightningModule):
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
-        return torch.optim.AdamW(self.parameters(), lr=3e-4)
+        return torch.optim.AdamW(self.parameters(), lr=1e-5)

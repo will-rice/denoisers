@@ -1,31 +1,49 @@
 """Data modules."""
-from typing import Any, List, NamedTuple, Optional
+from dataclasses import dataclass
+from typing import Any, List, Optional
 
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
+from src.denoiser.transforms import GaussianNoise
 
-class Sample(NamedTuple):
-    """Sample"""
+
+@dataclass
+class Sample:
+    """Sample object for easy access to model inputs."""
 
     audio: Tensor
-    lengths: List[int]
+    noisy_audio: Tensor
+    audio_lengths: List[int]
+    specs: Tensor
+    noisy_specs: Tensor
+    spec_lengths: List[int]
 
 
 class LibriTTSDataModule(pl.LightningDataModule):
     """LibriTTS DataModule."""
 
     def __init__(
-        self, data_dir: str = "./", batch_size: int = 24, max_length: int = 24000 * 3
+        self,
+        data_dir: str = "./",
+        batch_size: int = 24,
+        max_length: int = 24000 * 3,
+        n_fft: int = 1024,
+        win_length: int = 1024,
+        hop_length: int = 256,
     ) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.max_length = max_length
+        self.n_fft = n_fft
+        self.win_length = win_length
+        self.hop_length = hop_length
+        self.noiser = nn.Sequential(GaussianNoise())
 
     def prepare_data(self) -> None:
         """Download datasets."""
@@ -101,17 +119,55 @@ class LibriTTSDataModule(pl.LightningDataModule):
 
     def pad_collate(self, batch: Any) -> Any:
         """Custom collate function."""
-        audio, *_ = zip(*batch)
+        samples, *_ = zip(*batch)
 
-        samples = []
-        lengths = []
-        for a in audio:
-            a = a.squeeze()
-            audio_length = len(a)
-            padded = F.pad(a, (0, self.max_length))
+        audio = []
+        audio_lengths = []
+        noisy_audio = []
+        specs = []
+        spec_lengths = []
+        noisy_specs = []
+
+        for sample in samples:
+            sample = sample.squeeze()
+            audio_length = sample.size(0)
+            padded = F.pad(sample, (0, self.max_length))
             padded = padded[: self.max_length]
-            samples.append(padded)
-            lengths.append(audio_length)
 
-        stacked = torch.stack(samples)
-        return Sample(audio=stacked, lengths=lengths)
+            noisy = self.noiser(padded)
+
+            spec = self.get_spectrogram(padded)
+            noisy_spec = self.get_spectrogram(noisy)
+            spec_length = spec.size(1)
+
+            audio.append(padded)
+            audio_lengths.append(audio_length)
+            noisy_audio.append(noisy)
+            specs.append(spec)
+            spec_lengths.append(spec_length)
+            noisy_specs.append(noisy_spec)
+
+        return Sample(
+            audio=torch.stack(audio),
+            audio_lengths=audio_lengths,
+            noisy_audio=torch.stack(noisy_audio),
+            specs=torch.stack(specs),
+            spec_lengths=spec_lengths,
+            noisy_specs=torch.stack(noisy_specs),
+        )
+
+    def get_spectrogram(self, inputs: Tensor) -> Tensor:
+        spec = (
+            torch.stft(
+                inputs,
+                n_fft=self.n_fft,
+                win_length=self.win_length,
+                hop_length=self.hop_length,
+                return_complex=True,
+            )
+            .abs()
+            .log()
+            .maximum(torch.tensor(1e-5))
+        )
+
+        return spec
