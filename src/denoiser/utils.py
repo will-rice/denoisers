@@ -1,8 +1,6 @@
 import matplotlib.pyplot as plt
 import torch
 
-plt.axis("off")
-
 
 def plot_image_batch(
     clean: torch.Tensor, noisy: torch.Tensor, pred: torch.Tensor
@@ -14,7 +12,12 @@ def plot_image_batch(
     fig, ax = plt.subplots(len(np_clean), 3, figsize=(20, 5 * len(np_clean)))
     for i, (c, n, p) in enumerate(zip(np_clean, np_noisy, np_pred)):
         ax[i][0].imshow(c, origin="lower", aspect="auto")
+        ax[i][0].axis("off")
+
         ax[i][1].imshow(n, origin="lower", aspect="auto")
+        ax[i][1].axis("off")
+
         ax[i][2].imshow(p, origin="lower", aspect="auto")
+        ax[i][2].axis("off")
 
     return fig
