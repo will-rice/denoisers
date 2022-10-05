@@ -7,7 +7,6 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
-import wandb
 from src.denoiser.data import Sample
 from src.denoiser.transforms import GaussianNoise
 from src.denoiser.utils import plot_image_batch
@@ -202,11 +201,9 @@ class UNet(pl.LightningModule):
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
 
-        figure = plot_image_batch(
-            batch.specs, batch.noisy_specs, batch.noisy_specs - logits
+        plot_image_batch(
+            batch.specs, batch.noisy_specs, batch.noisy_specs - logits, "val"
         )
-        wandb.log({"val_images": wandb.Image(figure)})
-        figure.close()
 
         return loss
 
@@ -219,14 +216,8 @@ class UNet(pl.LightningModule):
         self.log("test_loss", loss, batch_size=batch.audio.size(1))
         self.log("test_snr", snr, batch_size=batch.audio.size(1))
 
-        wandb.log(
-            {
-                "test_images": wandb.Image(
-                    plot_image_batch(
-                        batch.specs, batch.noisy_specs, batch.noisy_specs - logits
-                    )
-                )
-            }
+        plot_image_batch(
+            batch.specs, batch.noisy_specs, batch.noisy_specs - logits, "test"
         )
 
         return loss
