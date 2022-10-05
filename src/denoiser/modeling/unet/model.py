@@ -104,7 +104,7 @@ class UNet(pl.LightningModule):
         self,
         n_channels: int = 1,
         n_classes: int = 1,
-        bilinear: Optional[bool] = False,
+        bilinear: Optional[bool] = True,
         n_fft: int = 1024,
         win_length: int = 1024,
         hop_length: int = 256,
