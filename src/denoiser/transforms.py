@@ -6,7 +6,7 @@ from torch import Tensor, nn
 class GaussianNoise(nn.Module):
     """Gaussian Noise Transform."""
 
-    def __init__(self, min_intensity: float = 0.0, max_intensity: float = 10.0):
+    def __init__(self, min_intensity: float = 0.0, max_intensity: float = 1.0):
         super().__init__()
         self.intensity_dist = torch.distributions.uniform.Uniform(
             min_intensity, max_intensity
