@@ -3,10 +3,13 @@ from typing import Any, Dict, Optional, Union
 
 import pytorch_lightning as pl
 import torch
-import torchaudio
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
+
+import wandb
+from src.denoiser.data import Sample
+from src.denoiser.transforms import GaussianNoise
 
 
 class DoubleConv(nn.Module):
@@ -108,17 +111,14 @@ class UNet(pl.LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
+
         self.n_channels = n_channels
         self.n_classes = n_classes
         self.bilinear = bilinear
-        self.transform = torchaudio.transforms.Spectrogram(
-            n_fft=n_fft,
-            win_length=win_length,
-            hop_length=hop_length,
-            center=True,
-            pad_mode="reflect",
-        )
-        self.intensity_dist = torch.distributions.uniform.Uniform(0.0, 10.0)
+        self.n_fft = n_fft
+        self.win_length = win_length
+        self.hop_length = hop_length
+        self.noiser = GaussianNoise()
         self.snr = SignalNoiseRatio()
 
         self.inc = DoubleConv(n_channels, 64)
@@ -147,16 +147,55 @@ class UNet(pl.LightningModule):
         logits = self.outc(x)
         return logits
 
+    def infer(self, audio: Tensor) -> Tensor:
+        """Inference"""
+        stft = torch.stft(
+            audio,
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            return_complex=True,
+        ).unsqueeze(1)
+        mag_stft = torch.abs(stft)
+
+        logits = self(mag_stft)
+        mag_stft -= logits
+
+        phase = torch.angle(stft)
+        zero = torch.tensor(0.0).to(mag_stft.dtype)
+        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
+            torch.complex(zero, phase)
+        )
+        inv_audio = torch.istft(
+            phase_stft,
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+        )
+
+        return inv_audio
+
     def training_step(
-        self, batch: Any, batch_idx: Any
+        self, batch: Sample, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
-        audio, noisy, noise = batch
+        stft = torch.stft(
+            batch.audio,
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            return_complex=True,
+        ).unsqueeze(1)
+        mag_stft = torch.abs(stft)
+        noisy = self.noiser(mag_stft)
 
-        noise_pred = self(noisy)
-        loss = F.mse_loss(noise_pred, audio)
+        logits = self(noisy)
+        loss = F.mse_loss(logits, mag_stft - noisy)
+
+        snr = self.snr(noisy - logits, mag_stft)
 
         self.log("train_loss", loss)
+        self.log("train_snr", snr)
 
         return loss
 
@@ -164,32 +203,71 @@ class UNet(pl.LightningModule):
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
-        audio, noisy, noise = batch
+        stft = torch.stft(
+            batch.audio,
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            return_complex=True,
+        ).unsqueeze(1)
+        mag_stft = torch.abs(stft)
+        noisy = self.noiser(mag_stft)
 
-        noise_pred = self(noisy)
-        loss = F.mse_loss(noise_pred, audio)
+        logits = self(noisy)
+        loss = F.mse_loss(logits, mag_stft - noisy)
 
-        snr = self.snr(noisy - noise_pred, audio)
+        snr = self.snr(noisy - logits, mag_stft)
 
         self.log("val_loss", loss)
-        self.log("snr", snr)
+        self.log("val_snr", snr)
+
+        wandb.log(
+            {
+                "val_clean": wandb.Audio(
+                    batch.audio.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
+                ),
+                "val_noisy": wandb.Audio(
+                    noisy.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
+                ),
+                "val_pred": wandb.Audio(
+                    (noisy - logits).squeeze(1).cpu().detach().numpy()[0],
+                    sample_rate=24000,
+                ),
+            }
+        )
 
         return loss
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
-        audio, noisy, noise = batch
+        noisy = self.noiser(batch.audio)
 
-        noise_pred = self(noisy)
-        loss = F.mse_loss(noise_pred, audio)
+        logits = self.infer(noisy)
+        clean = noisy - logits
 
-        snr = self.snr(noisy - noise_pred, audio)
+        loss = F.mse_loss(clean, batch.audio)
+        snr = self.snr(noisy - logits, batch.audio)
 
         self.log("test_loss", loss)
-        self.log("snr", snr)
+        self.log("test_snr", snr)
+
+        wandb.log(
+            {
+                "test_clean": wandb.Audio(
+                    batch.audio.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
+                ),
+                "test_noisy": wandb.Audio(
+                    noisy.squeeze(1).cpu().detach().numpy()[0], sample_rate=24000
+                ),
+                "test_pred": wandb.Audio(
+                    (noisy - logits).squeeze(1).cpu().detach()[0].numpy(),
+                    sample_rate=24000,
+                ),
+            }
+        )
 
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
-        return torch.optim.AdamW(self.parameters(), lr=1e-5)
+        return torch.optim.AdamW(self.parameters(), lr=1e-4)

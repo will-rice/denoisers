@@ -21,13 +21,20 @@ def main() -> None:
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--dataset", default="libritts", type=str)
     parser.add_argument("--seed", default=1234, type=int)
+    parser.add_argument("--debug", default=False, type=bool)
     args = parser.parse_args()
 
     pl.seed_everything(args.seed)
 
     model = UNet()
     datamodule = LibriTTSDataModule(batch_size=args.batch_size)
-    logger = loggers.WandbLogger(project=args.project, log_model="all", name=args.name)
+    logger = loggers.WandbLogger(
+        project=args.project,
+        save_dir="logs",
+        log_model=False if args.debug else "all",
+        name=args.name,
+        offline=args.debug,
+    )
 
     trainer = pl.Trainer(
         default_root_dir="logs",

@@ -1,58 +1,31 @@
 """Data modules."""
-from typing import Any, Optional
+from typing import Any, List, NamedTuple, Optional
 
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from torch import Tensor, nn
+from torch import Tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-MAX_LENGTH = 24000 * 1
 
+class Sample(NamedTuple):
+    """Sample"""
 
-class GaussianNoise(nn.Module):
-    """Gaussian Noise Transform."""
-
-    def __init__(self, min_intensity: float = 0.0, max_intensity: float = 50.0):
-        super().__init__()
-        self.intensity_dist = torch.distributions.uniform.Uniform(
-            min_intensity, max_intensity
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward Pass."""
-        intensity = self.intensity_dist.sample().to(x.device)
-        noise = torch.randn_like(x) * intensity
-        noisy = x + noise
-        return noisy
+    audio: Tensor
+    lengths: List[int]
 
 
 class LibriTTSDataModule(pl.LightningDataModule):
     """LibriTTS DataModule."""
 
     def __init__(
-        self,
-        data_dir: str = "./",
-        batch_size: int = 24,
-        n_fft: int = 1024,
-        win_length: int = 1024,
-        hop_length: int = 256,
+        self, data_dir: str = "./", batch_size: int = 24, max_length: int = 24000 * 3
     ) -> None:
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
-        self.noiser = GaussianNoise()
-        self.transform = nn.Sequential(
-            torchaudio.transforms.Spectrogram(
-                n_fft=n_fft,
-                win_length=win_length,
-                hop_length=hop_length,
-                center=True,
-                pad_mode="reflect",
-            ),
-            torchaudio.transforms.AmplitudeToDB(stype="power"),
-        )
+        self.max_length = max_length
 
     def prepare_data(self) -> None:
         """Download datasets."""
@@ -130,21 +103,15 @@ class LibriTTSDataModule(pl.LightningDataModule):
         """Custom collate function."""
         audio, *_ = zip(*batch)
 
-        slices = []
-        noise = []
-        noisy = []
+        samples = []
+        lengths = []
         for a in audio:
             a = a.squeeze()
-            a = F.pad(a, (0, MAX_LENGTH))
-            a = a[:MAX_LENGTH]
-            s = self.transform(a)
-            n = self.noiser(s)
-            slices.append(s)
-            noisy.append(n)
-            noise.append(s - n)
+            audio_length = len(a)
+            padded = F.pad(a, (0, self.max_length))
+            padded = padded[: self.max_length]
+            samples.append(padded)
+            lengths.append(audio_length)
 
-        samples = torch.stack(slices).unsqueeze(1)
-        noisys = torch.stack(noisy).unsqueeze(1)
-        noises = torch.stack(noise).unsqueeze(1)
-
-        return samples, noisys, noises
+        stacked = torch.stack(samples)
+        return Sample(audio=stacked, lengths=lengths)
