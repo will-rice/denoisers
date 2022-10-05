@@ -105,7 +105,7 @@ class UNet(pl.LightningModule):
         self,
         n_channels: int = 1,
         n_classes: int = 1,
-        bilinear: Optional[bool] = True,
+        bilinear: Optional[bool] = False,
         n_fft: int = 1024,
         win_length: int = 1024,
         hop_length: int = 256,
@@ -202,15 +202,11 @@ class UNet(pl.LightningModule):
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
 
-        wandb.log(
-            {
-                "val_images": wandb.Image(
-                    plot_image_batch(
-                        batch.specs, batch.noisy_specs, batch.noisy_specs - logits
-                    )
-                )
-            }
+        figure = plot_image_batch(
+            batch.specs, batch.noisy_specs, batch.noisy_specs - logits
         )
+        wandb.log({"val_images": wandb.Image(figure)})
+        figure.close()
 
         return loss
 
@@ -237,4 +233,4 @@ class UNet(pl.LightningModule):
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
-        return torch.optim.AdamW(self.parameters(), lr=1e-3)
+        return torch.optim.AdamW(self.parameters(), lr=3e-4)
