@@ -24,8 +24,6 @@ def main() -> None:
     parser.add_argument("--debug", default=False, type=bool)
     args = parser.parse_args()
 
-    pl.seed_everything(args.seed)
-
     model = UNet()
     datamodule = LibriTTSDataModule(batch_size=args.batch_size)
     logger = loggers.WandbLogger(
