@@ -6,7 +6,6 @@ import pytorch_lightning as pl
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-from torchaudio.transforms import AmplitudeToDB
 from torchmetrics import SignalNoiseRatio
 
 import wandb
@@ -225,8 +224,8 @@ class UNet(pl.LightningModule):
 
         wandb.log(
             {
-                "test_clean": plt.imshow(
-                    AmplitudeToDB()(mag_stft).squeeze(1).cpu().detach().numpy()[0],
+                "val_clean": plt.imshow(
+                    mag_stft.squeeze(1).cpu().detach().numpy()[0],
                     origin="lower",
                     aspect="auto",
                 )
@@ -235,13 +234,8 @@ class UNet(pl.LightningModule):
         plt.close()
         wandb.log(
             {
-                "test_noisy": plt.imshow(
-                    AmplitudeToDB()(noisy)
-                    .squeeze(1)
-                    .squeeze(1)
-                    .cpu()
-                    .detach()
-                    .numpy()[0],
+                "val_noisy": plt.imshow(
+                    noisy.squeeze(1).squeeze(1).cpu().detach().numpy()[0],
                     origin="lower",
                     aspect="auto",
                 )
@@ -250,12 +244,8 @@ class UNet(pl.LightningModule):
         plt.close()
         wandb.log(
             {
-                "test_pred": plt.imshow(
-                    AmplitudeToDB()(noisy - logits)
-                    .squeeze(1)
-                    .cpu()
-                    .detach()
-                    .numpy()[0],
+                "val_pred": plt.imshow(
+                    (noisy - logits).squeeze(1).cpu().detach().numpy()[0],
                     origin="lower",
                     aspect="auto",
                 ),
