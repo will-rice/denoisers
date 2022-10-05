@@ -43,6 +43,7 @@ def main() -> None:
         devices=args.num_devices,
         logger=logger,
         val_check_interval=1000,
+        precision=16,
     )
     trainer.fit(model, datamodule=datamodule)
     trainer.test(model, datamodule=datamodule)
