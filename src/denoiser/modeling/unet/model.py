@@ -223,7 +223,7 @@ class UNet(pl.LightningModule):
         self.log("val_snr", snr)
 
         wandb.log(
-            "images", wandb.Image(plot_image_batch(mag_stft, noisy, noisy - logits))
+            {"images": wandb.Image(plot_image_batch(mag_stft, noisy, noisy - logits))}
         )
 
         return loss
