@@ -157,17 +157,12 @@ class LibriTTSDataModule(pl.LightningDataModule):
         )
 
     def get_spectrogram(self, inputs: Tensor) -> Tensor:
-        spec = (
-            torch.stft(
-                inputs,
-                n_fft=self.n_fft,
-                win_length=self.win_length,
-                hop_length=self.hop_length,
-                return_complex=True,
-            )
-            .abs()
-            .log()
-            .maximum(torch.tensor(1e-5))
-        )
+        spec = torch.stft(
+            inputs,
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+            return_complex=True,
+        ).abs()
 
         return spec

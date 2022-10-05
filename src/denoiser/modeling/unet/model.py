@@ -186,8 +186,8 @@ class UNet(pl.LightningModule):
 
         snr = self.snr(batch.noisy_specs - logits, batch.specs)
 
-        self.log("train_loss", loss)
-        self.log("train_snr", snr)
+        self.log("train_loss", loss, batch_size=batch.audio.size(1))
+        self.log("train_snr", snr, batch_size=batch.audio.size(1))
 
         return loss
 
@@ -199,8 +199,8 @@ class UNet(pl.LightningModule):
         loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
         snr = self.snr(batch.noisy_specs - logits, batch.specs)
 
-        self.log("val_loss", loss)
-        self.log("val_snr", snr)
+        self.log("val_loss", loss, batch_size=batch.audio.size(1))
+        self.log("val_snr", snr, batch_size=batch.audio.size(1))
 
         wandb.log(
             {
@@ -220,8 +220,8 @@ class UNet(pl.LightningModule):
         loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
         snr = self.snr(batch.noisy_specs - logits, batch.specs)
 
-        self.log("test_loss", loss)
-        self.log("test_snr", snr)
+        self.log("test_loss", loss, batch_size=batch.audio.size(1))
+        self.log("test_snr", snr, batch_size=batch.audio.size(1))
 
         wandb.log(
             {
