@@ -18,7 +18,7 @@ def main() -> None:
     parser.add_argument(
         "--num_devices", default=1 if torch.cuda.is_available() else None
     )
-    parser.add_argument("--batch_size", default=16, type=int)
+    parser.add_argument("--batch_size", default=40, type=int)
     parser.add_argument("--dataset", default="libritts", type=str)
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--debug", default=False, type=bool)
