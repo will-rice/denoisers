@@ -6,7 +6,7 @@ import torch
 from pytorch_lightning import loggers
 
 from src.denoiser.data import LibriTTSDataModule
-from src.denoiser.model import UNet
+from src.denoiser.modeling.unet.model import UNet
 
 
 def main() -> None:

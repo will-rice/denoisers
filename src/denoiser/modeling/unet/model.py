@@ -188,7 +188,7 @@ class UNet(pl.LightningModule):
             hop_length=self.hop_length,
             return_complex=True,
         ).unsqueeze(1)
-        mag_stft = torch.abs(stft)
+        mag_stft = torch.abs(stft).log().maximum(torch.tensor(1e-5))
         noisy = self.noiser(mag_stft)
 
         logits = self(noisy)
@@ -212,7 +212,7 @@ class UNet(pl.LightningModule):
             hop_length=self.hop_length,
             return_complex=True,
         ).unsqueeze(1)
-        mag_stft = torch.abs(stft)
+        mag_stft = torch.abs(stft).log().maximum(torch.tensor(1e-5))
         noisy = self.noiser(mag_stft)
 
         logits = self(noisy)
@@ -276,7 +276,7 @@ class UNet(pl.LightningModule):
             hop_length=self.hop_length,
             return_complex=True,
         ).unsqueeze(1)
-        noisy_mag_stft = torch.abs(noisy_stft)
+        noisy_mag_stft = torch.abs(noisy_stft).log().maximum(torch.tensor(1e-5))
 
         pred_audio = self.infer(noisy_mag_stft)
         loss = F.l1_loss(pred_audio, batch.audio)
