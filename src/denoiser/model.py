@@ -192,7 +192,7 @@ class UNet(pl.LightningModule):
         noisy = self.noiser(mag_stft)
 
         logits = self(noisy)
-        loss = F.mse_loss(logits, noisy - mag_stft)
+        loss = F.l1_loss(logits, noisy - mag_stft)
 
         snr = self.snr(noisy - logits, mag_stft)
 
@@ -216,7 +216,7 @@ class UNet(pl.LightningModule):
         noisy = self.noiser(mag_stft)
 
         logits = self(noisy)
-        loss = F.mse_loss(logits, noisy - mag_stft)
+        loss = F.l1_loss(logits, noisy - mag_stft)
 
         snr = self.snr(noisy - logits, mag_stft)
 
@@ -279,7 +279,7 @@ class UNet(pl.LightningModule):
         noisy_mag_stft = torch.abs(noisy_stft)
 
         pred_audio = self.infer(noisy_mag_stft)
-        loss = F.mse_loss(pred_audio, batch.audio)
+        loss = F.l1_loss(pred_audio, batch.audio)
 
         snr = self.snr(pred_audio, batch.audio)
 
@@ -305,4 +305,4 @@ class UNet(pl.LightningModule):
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
-        return torch.optim.AdamW(self.parameters(), lr=1e-5)
+        return torch.optim.AdamW(self.parameters(), lr=3e-4)
