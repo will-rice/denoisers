@@ -237,4 +237,4 @@ class UNet(pl.LightningModule):
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
-        return torch.optim.AdamW(self.parameters(), lr=1e-5)
+        return torch.optim.AdamW(self.parameters(), lr=1e-4)
