@@ -192,7 +192,7 @@ class UNet(pl.LightningModule):
         noisy = self.noiser(mag_stft)
 
         logits = self(noisy)
-        loss = F.mse_loss(logits, mag_stft - noisy)
+        loss = F.mse_loss(logits, noisy - mag_stft)
 
         snr = self.snr(noisy - logits, mag_stft)
 
@@ -216,7 +216,7 @@ class UNet(pl.LightningModule):
         noisy = self.noiser(mag_stft)
 
         logits = self(noisy)
-        loss = F.mse_loss(logits, mag_stft - noisy)
+        loss = F.mse_loss(logits, noisy - mag_stft)
 
         snr = self.snr(noisy - logits, mag_stft)
 
@@ -229,7 +229,12 @@ class UNet(pl.LightningModule):
                     AmplitudeToDB()(mag_stft).squeeze(1).cpu().detach().numpy()[0],
                     origin="lower",
                     aspect="auto",
-                ),
+                )
+            }
+        )
+        plt.close()
+        wandb.log(
+            {
                 "test_noisy": plt.imshow(
                     AmplitudeToDB()(noisy)
                     .squeeze(1)
@@ -239,7 +244,12 @@ class UNet(pl.LightningModule):
                     .numpy()[0],
                     origin="lower",
                     aspect="auto",
-                ),
+                )
+            }
+        )
+        plt.close()
+        wandb.log(
+            {
                 "test_pred": plt.imshow(
                     AmplitudeToDB()(noisy - logits)
                     .squeeze(1)
@@ -251,6 +261,7 @@ class UNet(pl.LightningModule):
                 ),
             }
         )
+        plt.close()
 
         return loss
 
