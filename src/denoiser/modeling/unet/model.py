@@ -8,7 +8,6 @@ from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
 from src.denoiser.data import Sample
-from src.denoiser.transforms import GaussianNoise
 from src.denoiser.utils import plot_image_batch
 
 
@@ -118,7 +117,6 @@ class UNet(pl.LightningModule):
         self.n_fft = n_fft
         self.win_length = win_length
         self.hop_length = hop_length
-        self.noiser = GaussianNoise()
         self.snr = SignalNoiseRatio()
 
         self.inc = DoubleConv(n_channels, 64)
