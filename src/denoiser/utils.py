@@ -28,3 +28,15 @@ def plot_image_batch(
     wandb.log({f"{name}_images": wandb.Image(fig)})
 
     plt.close()
+
+
+def log_audio_batch(
+    clean: torch.Tensor, noisy: torch.Tensor, pred: torch.Tensor, name: str
+) -> None:
+    np_clean = clean.squeeze(1).cpu().detach().numpy()[:5]
+    np_noisy = noisy.squeeze(1).cpu().detach().numpy()[:5]
+    np_pred = pred.squeeze(1).cpu().detach().numpy()[:5]
+
+    wandb.log({f"{name}_clean": wandb.Audio(np_clean, sample_rate=24000)})
+    wandb.log({f"{name}_noisy": wandb.Audio(np_noisy, sample_rate=24000)})
+    wandb.log({f"{name}_pred": wandb.Audio(np_pred, sample_rate=24000)})

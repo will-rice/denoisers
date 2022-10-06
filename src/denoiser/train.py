@@ -1,5 +1,6 @@
 """Train script."""
 import argparse
+from pathlib import Path
 
 import pytorch_lightning as pl
 import torch
@@ -22,17 +23,22 @@ def main() -> None:
     parser.add_argument("--dataset", default="libritts", type=str)
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--debug", default=False, type=bool)
+    parser.add_argument("--logdir", default="logs", type=Path)
     args = parser.parse_args()
 
     model = UNet()
     datamodule = LibriTTSDataModule(batch_size=args.batch_size)
     logger = loggers.WandbLogger(
         project=args.project,
-        save_dir="logs",
+        save_dir=args.logdir,
         log_model=False if args.debug else "all",
         name=args.name,
         offline=args.debug,
     )
+    checkpoint_callback = pl.callbacks.ModelCheckpoint(
+        dirpath=args.logdir / args.name, filename="{epoch}-{val_loss:.2f}"
+    )
+    swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=1e-2)
 
     trainer = pl.Trainer(
         default_root_dir="logs",
@@ -42,6 +48,7 @@ def main() -> None:
         logger=logger,
         val_check_interval=1000,
         precision=16,
+        callbacks=[checkpoint_callback, swa_callback],
     )
     trainer.fit(model, datamodule=datamodule)
     trainer.test(model, datamodule=datamodule)
