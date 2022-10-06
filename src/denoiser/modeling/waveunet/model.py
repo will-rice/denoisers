@@ -149,7 +149,6 @@ class WaveUNet(pl.LightningModule):
             # [batch_size, T * 2, channels]
             o = F.interpolate(o, scale_factor=2, mode="linear", align_corners=True)
             # Skip Connection
-            print(o.shape, skip_connections[self.n_layers - i - 1].shape)
             o = torch.cat([o, skip_connections[self.n_layers - i - 1]], dim=1)
             o = self.decoder[i](o)
 
