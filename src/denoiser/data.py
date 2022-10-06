@@ -32,7 +32,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
         data_dir: str = "./",
         batch_size: int = 24,
         max_length: int = 24000 * 3,
-        n_fft: int = 1024,
+        n_fft: int = 2048,
         win_length: int = 1024,
         hop_length: int = 256,
     ) -> None:
