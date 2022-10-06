@@ -183,7 +183,7 @@ class WaveUNet(pl.LightningModule):
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
 
         log_audio_batch(
-            batch.audio, batch.noisy_audio, batch.noisy_audio - logits, "test"
+            batch.audio, batch.noisy_audio, batch.noisy_audio - logits, "val"
         )
 
         return loss
