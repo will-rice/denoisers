@@ -1,6 +1,6 @@
 """Wave UNet Model"""
 from dataclasses import dataclass
-from typing import Any, Dict, Union
+from typing import Any, Dict, List, Union
 
 import pytorch_lightning as pl
 import torch
@@ -182,11 +182,20 @@ class WaveUNet(pl.LightningModule):
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
 
-        log_audio_batch(
-            batch.audio, batch.noisy_audio, batch.noisy_audio - logits, "val"
-        )
+        return {
+            "loss": loss,
+            "outputs": (batch.audio, batch.noisy_audio, batch.noisy_audio - logits),
+        }
 
-        return loss
+    def validation_epoch_end(
+        self,
+        validation_step_outputs: Union[
+            List[Union[Tensor, Dict[str, Any]]],
+            List[List[Union[Tensor, Dict[str, Any]]]],
+        ],
+    ) -> None:
+        audio, noisy, pred = validation_step_outputs[-1]["outputs"]
+        log_audio_batch(audio, noisy, pred, name="val")
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""

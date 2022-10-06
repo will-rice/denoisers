@@ -50,7 +50,6 @@ def main() -> None:
         accelerator="auto",
         devices=args.num_devices,
         logger=logger,
-        val_check_interval=1000,
         precision=16,
         callbacks=[checkpoint_callback, swa_callback],
     )
