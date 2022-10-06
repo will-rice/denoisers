@@ -29,9 +29,9 @@ class LibriTTSDataModule(pl.LightningDataModule):
 
     def __init__(
         self,
-        data_dir: str = "./",
+        data_dir: str,
         batch_size: int = 24,
-        max_length: int = 24000 * 1,
+        max_length: int = 16384,
         n_fft: int = 2048,
         win_length: int = 1024,
         hop_length: int = 256,

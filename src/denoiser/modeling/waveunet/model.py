@@ -2,12 +2,14 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Union
 
+import pytorch_lightning as pl
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
+from torchmetrics import SignalNoiseRatio
 
 from src.denoiser.data import Sample
-from src.denoiser.utils import log_audio_batch, plot_image_batch
+from src.denoiser.utils import log_audio_batch
 
 
 @dataclass
@@ -21,9 +23,15 @@ class WaveUNetOutputs:
 
 class DownSamplingLayer(nn.Module):
     def __init__(
-        self, channel_in, channel_out, dilation=1, kernel_size=15, stride=1, padding=7
+        self,
+        channel_in: int,
+        channel_out: int,
+        dilation: int = 1,
+        kernel_size: int = 15,
+        stride: int = 1,
+        padding: int = 7,
     ):
-        super(DownSamplingLayer, self).__init__()
+        super().__init__()
         self.main = nn.Sequential(
             nn.Conv1d(
                 channel_in,
@@ -37,12 +45,19 @@ class DownSamplingLayer(nn.Module):
             nn.LeakyReLU(negative_slope=0.1),
         )
 
-    def forward(self, ipt):
+    def forward(self, ipt: Tensor) -> Tensor:
         return self.main(ipt)
 
 
 class UpSamplingLayer(nn.Module):
-    def __init__(self, channel_in, channel_out, kernel_size=5, stride=1, padding=2):
+    def __init__(
+        self,
+        channel_in: int,
+        channel_out: int,
+        kernel_size: int = 5,
+        stride: int = 1,
+        padding: int = 2,
+    ):
         super(UpSamplingLayer, self).__init__()
         self.main = nn.Sequential(
             nn.Conv1d(
@@ -56,14 +71,14 @@ class UpSamplingLayer(nn.Module):
             nn.LeakyReLU(negative_slope=0.1, inplace=True),
         )
 
-    def forward(self, ipt):
-        return self.main(ipt)
+    def forward(self, x: Tensor) -> Tensor:
+        return self.main(x)
 
 
-class WaveUNet(nn.Module):
+class WaveUNet(pl.LightningModule):
     """WaveUNet Model."""
 
-    def __init__(self, n_layers=12, channels_interval=24):
+    def __init__(self, n_layers: int = 12, channels_interval: int = 24):
         super().__init__()
 
         self.n_layers = n_layers
@@ -75,8 +90,8 @@ class WaveUNet(nn.Module):
             i * self.channels_interval for i in range(1, self.n_layers + 1)
         ]
 
-        #          1    => 2    => 3    => 4    => 5    => 6   => 7   => 8   => 9  => 10 => 11 =>12
-        # 16384 => 8192 => 4096 => 2048 => 1024 => 512 => 256 => 128 => 64 => 32 => 16 =>  8 => 4
+        # 1=>2=>3=>4=>5=>6=>7=>8=>9=>10=>11=>12
+        # 16384=>8192=>4096=>2048=>1024=>512=>256=>128=>64=>32=>16=>8=>4
         self.encoder = nn.ModuleList()
         for i in range(self.n_layers):
             self.encoder.append(
@@ -115,15 +130,15 @@ class WaveUNet(nn.Module):
         self.out = nn.Sequential(
             nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
         )
+        self.snr = SignalNoiseRatio()
 
-    def forward(self, input):
-        tmp = []
-        o = input
+    def forward(self, inputs: Tensor) -> Tensor:
+        o = inputs
 
-        # Up Sampling
+        skip_connections = []
         for i in range(self.n_layers):
             o = self.encoder[i](o)
-            tmp.append(o)
+            skip_connections.append(o)
             # [batch_size, T // 2, channels]
             o = o[:, :, ::2]
 
@@ -134,10 +149,11 @@ class WaveUNet(nn.Module):
             # [batch_size, T * 2, channels]
             o = F.interpolate(o, scale_factor=2, mode="linear", align_corners=True)
             # Skip Connection
-            o = torch.cat([o, tmp[self.n_layers - i - 1]], dim=1)
+            print(o.shape, skip_connections[self.n_layers - i - 1].shape)
+            o = torch.cat([o, skip_connections[self.n_layers - i - 1]], dim=1)
             o = self.decoder[i](o)
 
-        o = torch.cat([o, input], dim=1)
+        o = torch.cat([o, inputs], dim=1)
         o = self.out(o)
         return o
 
@@ -149,7 +165,7 @@ class WaveUNet(nn.Module):
         logits = self(batch.noisy_audio)
         loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
 
-        snr = self.snr(batch.noisy_specs - logits, batch.specs)
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("train_loss", loss, batch_size=batch.audio.size(1))
         self.log("train_snr", snr, batch_size=batch.audio.size(1))
@@ -160,28 +176,24 @@ class WaveUNet(nn.Module):
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
-        logits = self(batch.noisy_specs)
-        loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
-        snr = self.snr(batch.noisy_specs - logits, batch.specs)
+        logits = self(batch.noisy_audio)
+        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
 
-        return {
-            "val_loss": loss,
-            "outputs": (batch.audio, batch.noisy_audio, batch.noisy_audio - logits),
-        }
+        log_audio_batch(
+            batch.audio, batch.noisy_audio, batch.noisy_audio - logits, "test"
+        )
 
-    def validation_epoch_end(self, validation_step_outputs):
-        """Plot images on validation epoch end."""
-        specs, noisy, pred = validation_step_outputs[-1]["outputs"]
-        log_audio_batch(specs, noisy, pred, name="val")
+        return loss
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
-        logits = self(batch.noisy_specs)
-        loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
-        snr = self.snr(batch.noisy_specs - logits, batch.specs)
+        logits = self(batch.noisy_audio)
+        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("test_loss", loss, batch_size=batch.audio.size(1))
         self.log("test_snr", snr, batch_size=batch.audio.size(1))
