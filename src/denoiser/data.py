@@ -133,6 +133,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
 
         for sample in samples:
             sample = sample.squeeze()
+            sample = torch.clamp(sample, -1.0, 1.0)
             audio_length = sample.size(0)
 
             if audio_length < self.max_length:
@@ -147,6 +148,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
             noisy = self.reverb.process(padded.detach().numpy(), 24000)
             noisy = torch.FloatTensor(noisy)
             noisy += self.noiser(padded)
+            noisy = torch.clamp(noisy, -1.0, 1.0)
 
             spec = self.get_spectrogram(padded)
             noisy_spec = self.get_spectrogram(noisy)

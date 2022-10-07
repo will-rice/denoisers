@@ -5,7 +5,7 @@ import pytorch_lightning as pl
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-from torchmetrics import SignalNoiseRatio
+from torchmetrics import functional as M
 
 from src.denoiser.data import Sample
 from src.denoiser.utils import plot_image_batch
@@ -117,7 +117,6 @@ class UNet(pl.LightningModule):
         self.n_fft = n_fft
         self.win_length = win_length
         self.hop_length = hop_length
-        self.snr = SignalNoiseRatio()
 
         self.inc = DoubleConv(n_channels, 64)
         self.down1 = DownSampleLayer(64, 128)
@@ -177,11 +176,9 @@ class UNet(pl.LightningModule):
         self, batch: Sample, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
-
         logits = self(batch.noisy_specs)
         loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
-
-        snr = self.snr(batch.noisy_specs - logits, batch.specs)
+        snr = M.signal_noise_ratio(batch.noisy_specs - logits, batch.specs)
 
         self.log("train_loss", loss, batch_size=batch.audio.size(1))
         self.log("train_snr", snr, batch_size=batch.audio.size(1))
@@ -194,7 +191,7 @@ class UNet(pl.LightningModule):
         """Val step."""
         logits = self(batch.noisy_specs)
         loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
-        snr = self.snr(batch.noisy_specs - logits, batch.specs)
+        snr = M.signal_noise_ratio(batch.noisy_specs - logits, batch.specs)
 
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
@@ -209,7 +206,7 @@ class UNet(pl.LightningModule):
         """Test step."""
         logits = self(batch.noisy_specs)
         loss = F.l1_loss(logits, batch.noisy_specs - batch.specs)
-        snr = self.snr(batch.noisy_specs - logits, batch.specs)
+        snr = M.signal_noise_ratio(batch.noisy_specs - logits, batch.specs)
 
         self.log("test_loss", loss, batch_size=batch.audio.size(1))
         self.log("test_snr", snr, batch_size=batch.audio.size(1))
