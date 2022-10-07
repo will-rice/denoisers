@@ -143,9 +143,11 @@ class LibriTTSDataModule(pl.LightningDataModule):
             random_idx = torch.randint(high=padded.size(0) - self.max_length, size=())
             padded = padded[random_idx : random_idx + self.max_length]
 
-            noisy = self.noiser(padded)
-            self.reverb.room_size = random.random()
-            noisy += self.reverb.process(noisy.detach().numpy(), 24000)
+            if random.random() < 0.5:
+                noisy = self.noiser(padded)
+            else:
+                self.reverb.room_size = random.random()
+                noisy = self.reverb.process(padded.detach().numpy(), 24000)
 
             spec = self.get_spectrogram(padded)
             noisy_spec = self.get_spectrogram(noisy)
