@@ -21,7 +21,7 @@ def main() -> None:
     parser.add_argument(
         "--num_devices", default=1 if torch.cuda.is_available() else None
     )
-    parser.add_argument("--batch_size", default=40, type=int)
+    parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--dataset", default="libritts", type=str)
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--debug", default=False, type=bool)
@@ -42,7 +42,7 @@ def main() -> None:
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=args.log_path / args.name, filename="{epoch}-{val_loss:.2f}"
     )
-    swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=1e-2)
+    swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=0.05)
 
     trainer = pl.Trainer(
         default_root_dir="logs",
