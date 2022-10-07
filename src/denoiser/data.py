@@ -148,6 +148,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
             else:
                 self.reverb.room_size = random.random()
                 noisy = self.reverb.process(padded.detach().numpy(), 24000)
+                noisy = torch.FloatTensor(noisy)
 
             spec = self.get_spectrogram(padded)
             noisy_spec = self.get_spectrogram(noisy)
