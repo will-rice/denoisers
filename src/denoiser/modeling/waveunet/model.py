@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-from torchmetrics import functional as M
+from torchmetrics import SignalNoiseRatio
 
 from src.denoiser.data import Sample
 from src.denoiser.utils import log_audio_batch
@@ -130,6 +130,7 @@ class WaveUNet(pl.LightningModule):
         self.out = nn.Sequential(
             nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
         )
+        self.snr = SignalNoiseRatio()
 
     def forward(self, inputs: Tensor) -> Tensor:
         o = inputs
@@ -159,9 +160,11 @@ class WaveUNet(pl.LightningModule):
         self, batch: Sample, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
+
         logits = self(batch.noisy_audio)
         loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-        snr = M.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
+
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("train_loss", loss, batch_size=batch.audio.size(1))
         self.log("train_snr", snr, batch_size=batch.audio.size(1))
@@ -174,7 +177,7 @@ class WaveUNet(pl.LightningModule):
         """Val step."""
         logits = self(batch.noisy_audio)
         loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-        snr = M.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
@@ -198,7 +201,7 @@ class WaveUNet(pl.LightningModule):
         """Test step."""
         logits = self(batch.noisy_audio)
         loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-        snr = M.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("test_loss", loss, batch_size=batch.audio.size(1))
         self.log("test_snr", snr, batch_size=batch.audio.size(1))
@@ -211,4 +214,4 @@ class WaveUNet(pl.LightningModule):
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
-        return torch.optim.AdamW(self.parameters(), lr=1e-3)
+        return torch.optim.AdamW(self.parameters(), lr=3e-4)
