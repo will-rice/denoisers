@@ -46,7 +46,6 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self.win_length = win_length
         self.hop_length = hop_length
         self.noiser = nn.Sequential(GaussianNoise())
-        self.board = Pedalboard([Reverb(room_size=random.random())])
 
     def prepare_data(self) -> None:
         """Download datasets."""
@@ -144,7 +143,8 @@ class LibriTTSDataModule(pl.LightningDataModule):
             padded = padded[random_idx : random_idx + self.max_length]
 
             noisy = self.noiser(padded)
-            noisy += self.board(noisy.detach().numpy(), 24000)
+            board = Pedalboard([Reverb(room_size=random.random())])
+            noisy += board(noisy.detach().numpy(), 24000)
 
             spec = self.get_spectrogram(padded)
             noisy_spec = self.get_spectrogram(noisy)
