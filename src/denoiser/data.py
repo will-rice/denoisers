@@ -6,7 +6,7 @@ from typing import Any, List, Optional
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from pedalboard import Pedalboard, Reverb
+from pedalboard import Reverb
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
@@ -46,6 +46,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self.win_length = win_length
         self.hop_length = hop_length
         self.noiser = nn.Sequential(GaussianNoise())
+        self.reverb = Reverb()
 
     def prepare_data(self) -> None:
         """Download datasets."""
@@ -143,8 +144,8 @@ class LibriTTSDataModule(pl.LightningDataModule):
             padded = padded[random_idx : random_idx + self.max_length]
 
             noisy = self.noiser(padded)
-            board = Pedalboard([Reverb(room_size=random.random())])
-            noisy += board(noisy.detach().numpy(), 24000)
+            self.reverb.room_size = random.random()
+            noisy += self.reverb.process(noisy.detach().numpy(), 24000)
 
             spec = self.get_spectrogram(padded)
             noisy_spec = self.get_spectrogram(noisy)
