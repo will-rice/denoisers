@@ -1,10 +1,12 @@
 """Data modules."""
+import random
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
 import pytorch_lightning as pl
 import torch
 import torchaudio
+from pedalboard import Pedalboard, Reverb
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
@@ -44,6 +46,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self.win_length = win_length
         self.hop_length = hop_length
         self.noiser = nn.Sequential(GaussianNoise())
+        self.board = Pedalboard([Reverb(room_size=random.random())])
 
     def prepare_data(self) -> None:
         """Download datasets."""
@@ -131,10 +134,17 @@ class LibriTTSDataModule(pl.LightningDataModule):
         for sample in samples:
             sample = sample.squeeze()
             audio_length = sample.size(0)
-            padded = F.pad(sample, (0, self.max_length))
-            padded = padded[: self.max_length]
+
+            if audio_length < self.max_length:
+                padded = F.pad(sample, (0, self.max_length))
+            else:
+                padded = sample
+
+            random_idx = torch.randint(0, audio_length - self.max_length)
+            padded = padded[random_idx : random_idx + self.max_length]
 
             noisy = self.noiser(padded)
+            noisy += self.board(audio, 24000)
 
             spec = self.get_spectrogram(padded)
             noisy_spec = self.get_spectrogram(noisy)
