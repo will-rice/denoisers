@@ -162,9 +162,9 @@ class WaveUNet(pl.LightningModule):
         """Train step."""
 
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+        loss = F.l1_loss(logits, batch.audio)
 
-        snr = self.snr(batch.noisy_audio - logits, batch.audio)
+        snr = self.snr(logits, batch.audio)
 
         self.log("train_loss", loss, batch_size=batch.audio.size(1))
         self.log("train_snr", snr, batch_size=batch.audio.size(1))
@@ -176,15 +176,15 @@ class WaveUNet(pl.LightningModule):
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-        snr = self.snr(batch.noisy_audio - logits, batch.audio)
+        loss = F.l1_loss(logits, batch.audio)
+        snr = self.snr(logits, batch.audio)
 
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
 
         return {
             "loss": loss,
-            "outputs": (batch.audio, batch.noisy_audio, batch.noisy_audio - logits),
+            "outputs": (batch.audio, batch.noisy_audio, logits),
         }
 
     def validation_epoch_end(
@@ -200,15 +200,13 @@ class WaveUNet(pl.LightningModule):
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-        snr = self.snr(batch.noisy_audio - logits, batch.audio)
+        loss = F.l1_loss(logits, batch.audio)
+        snr = self.snr(logits, batch.audio)
 
         self.log("test_loss", loss, batch_size=batch.audio.size(1))
         self.log("test_snr", snr, batch_size=batch.audio.size(1))
 
-        log_audio_batch(
-            batch.audio, batch.noisy_audio, batch.noisy_audio - logits, "test"
-        )
+        log_audio_batch(batch.audio, batch.noisy_audio, logits, "test")
 
         return loss
 
