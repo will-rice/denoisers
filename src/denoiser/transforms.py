@@ -156,7 +156,8 @@ class ReverbTransform(nn.Module):
         if random.random() < self.probability:
             self.reverb.room_size = random.random()
             x = self.reverb.process(x, self.sample_rate)
-            x = torch.from_numpy(x)
+
+        x = torch.from_numpy(x)
 
         return x
 
