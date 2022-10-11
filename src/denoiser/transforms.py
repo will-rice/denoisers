@@ -244,11 +244,11 @@ class RandomTransform(nn.Module):
         transforms: Tuple[nn.Module] = (
             ReverbTransform(),
             GaussianNoise(),
-            VolTransform(),
-            FilterTransform(),
-            ClipTransform(),
-            BreakTransform(),
-            SpecTransform(),
+            # VolTransform(),
+            # FilterTransform(),
+            # ClipTransform(),
+            # BreakTransform(),
+            # SpecTransform(),
         ),
     ):
         super().__init__()
