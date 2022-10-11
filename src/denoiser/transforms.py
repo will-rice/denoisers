@@ -21,8 +21,8 @@ class GaussianNoise(nn.Module):
         """Forward Pass."""
         intensity = self.intensity_dist.sample().to(x.device)
         noise = torch.randn_like(x) * intensity
-        noisy = x + noise
-        return noisy
+        x += noise
+        return x
 
 
 class FilterTransform(nn.Module):
@@ -94,8 +94,8 @@ class BreakTransform(nn.Module):
         ) * random.random() + self.break_ceil
         break_duration = break_count * self.break_segment
         mask = torch.ones(x.size())
-        break_start = int(x.size(1) * random.random())
-        break_end = int(min(x.size(1), break_start + break_duration))
+        break_start = int(x.size(0) * random.random())
+        break_end = int(min(x.size(0), break_start + break_duration))
         mask[:, break_start:break_end] = 0
         return mask
 
@@ -184,10 +184,10 @@ class VolTransform(nn.Module):
         return segments
 
     def forward(self, x):
-        step_db = self.get_vol(x.size(1))
+        step_db = self.get_vol(x.size(0))
         for i in range(step_db.size(0)):
             start = i * self.segment_samples
-            end = min((i + 1) * self.segment_samples, x.size(1))
+            end = min((i + 1) * self.segment_samples, x.size(0))
             x[:, start:end] = self.apply_gain(x[:, start:end], step_db[i])
 
         return x
