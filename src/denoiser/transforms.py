@@ -96,7 +96,7 @@ class BreakTransform(nn.Module):
         mask = torch.ones(x.size())
         break_start = int(x.size(0) * random.random())
         break_end = int(min(x.size(0), break_start + break_duration))
-        mask[:, break_start:break_end] = 0
+        mask[break_start:break_end] = 0
         return mask
 
     def forward(self, x):
