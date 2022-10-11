@@ -256,5 +256,5 @@ class RandomTransform(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         for t in self.transforms:
-            x = t(x)
+            x = t(x).clamp(-1.0, 1.0)
         return x
