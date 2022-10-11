@@ -1,21 +1,18 @@
 """Data modules."""
 import random
-from dataclasses import dataclass
-from typing import Any, List, Optional
+from typing import Any, List, NamedTuple, Optional
 
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from pedalboard import Reverb
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
-from src.denoiser.transforms import GaussianNoise
+from src.denoiser.transforms import RandomTransform
 
 
-@dataclass
-class Sample:
+class Sample(NamedTuple):
     """Sample object for easy access to model inputs."""
 
     audio: Tensor
@@ -45,8 +42,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self.n_fft = n_fft
         self.win_length = win_length
         self.hop_length = hop_length
-        self.noiser = nn.Sequential(GaussianNoise())
-        self.reverb = Reverb()
+        self.transform = RandomTransform()
 
     def prepare_data(self) -> None:
         """Download datasets."""
@@ -144,10 +140,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
             random_idx = torch.randint(high=padded.size(0) - self.max_length, size=())
             padded = padded[random_idx : random_idx + self.max_length]
 
-            self.reverb.room_size = random.random()
-            noisy = self.reverb.process(padded.detach().numpy(), 24000)
-            noisy = torch.FloatTensor(noisy)
-            noisy += self.noiser(padded)
+            noisy = self.transform(padded)
             noisy = torch.clamp(noisy, -1.0, 1.0)
 
             spec = self.get_spectrogram(padded)
