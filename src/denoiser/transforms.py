@@ -190,6 +190,9 @@ class RandomTransform(nn.Module):
         transforms: Tuple[nn.Module] = (
             ReverbTransform(),
             GaussianNoise(),
+            VolTransform(),
+            FilterTransform(),
+            ClipTransform(),
         ),
         probability=0.9,
     ):
