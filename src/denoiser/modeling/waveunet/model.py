@@ -29,7 +29,6 @@ class DownSamplingBlock(nn.Module):
         in_channels,
         out_channels,
         kernel_size,
-        dilation_rate=1,
         padding="same",
         dropout=0.0,
     ):
@@ -38,7 +37,6 @@ class DownSamplingBlock(nn.Module):
             in_channels,
             out_channels,
             kernel_size=kernel_size,
-            dilation=dilation_rate,
             padding=padding,
         )
         self.batch_norm_1 = nn.BatchNorm1d(out_channels)
@@ -47,7 +45,6 @@ class DownSamplingBlock(nn.Module):
             out_channels,
             out_channels,
             kernel_size=kernel_size,
-            dilation=dilation_rate,
             padding=padding,
         )
         self.batch_norm_2 = nn.BatchNorm1d(out_channels)
