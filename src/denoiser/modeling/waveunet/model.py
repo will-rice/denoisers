@@ -49,7 +49,7 @@ class DownSamplingBlock(nn.Module):
         )
         self.batch_norm_2 = nn.BatchNorm1d(out_channels)
         self.activation_2 = nn.LeakyReLU(0.1)
-        self.max_pool = nn.AvgPool1d(2)
+        self.max_pool = nn.AdaptiveAvgPool1d(2)
         self.dropout = nn.Dropout(dropout)
 
     def forward(self, inputs: torch.Tensor) -> torch.Tensor:
