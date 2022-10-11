@@ -58,7 +58,7 @@ class FilterTransform(nn.Module):
             sample_rate=self.sample_rate,
             center_freq=center_freq,
             gain=gain,
-            Q=self.Q,
+            Q=self.q,
         )
         return x
 
