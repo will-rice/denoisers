@@ -20,6 +20,9 @@ class GaussianNoise(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
+        if isinstance(x, np.pdarray):
+            x = torch.from_numpy(x)
+
         intensity = self.intensity_dist.sample()
         noise = torch.randn_like(x) * intensity
         noisy = x + noise
