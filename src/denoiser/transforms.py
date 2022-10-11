@@ -188,7 +188,7 @@ class RandomTransform(nn.Module):
             GaussianNoise(),
             ReverbTransform(),
         ),
-        probability=0.5,
+        probability=0.9,
     ):
         super().__init__()
         self.transforms = nn.ModuleList(transforms)
