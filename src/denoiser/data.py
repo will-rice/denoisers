@@ -139,7 +139,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
                 padded = F.pad(sample, (0, self.max_length))
             else:
                 padded = sample
-            print(padded.size(0) - self.max_length)
+
             random_idx = torch.randint(
                 high=padded.size(0) - self.max_length, size=(), low=0
             )
