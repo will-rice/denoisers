@@ -207,6 +207,7 @@ class WaveUNet(pl.LightningModule):
         self.log("test_snr", snr, batch_size=batch.audio.size(1))
 
         log_audio_batch(batch.audio, batch.noisy_audio, logits, "test")
+
         return loss
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
