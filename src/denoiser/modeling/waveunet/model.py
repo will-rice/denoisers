@@ -174,7 +174,7 @@ class WaveUNet(pl.LightningModule):
 
         out += residual
         out = self.out_conv(out)
-        return out.to(torch.float32)
+        return out.to(torch.float32).clamp(-1.0, 1.0)
 
     def training_step(
         self, batch: Sample, batch_idx: Any
