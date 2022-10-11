@@ -2,6 +2,7 @@
 import random
 from typing import Tuple
 
+import numpy as np
 import torch
 import torchaudio
 from pedalboard import Reverb
@@ -19,7 +20,7 @@ class GaussianNoise(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
-        intensity = self.intensity_dist.sample().to(x.device)
+        intensity = self.intensity_dist.sample()
         noise = torch.randn_like(x) * intensity
         x += noise
         return x
@@ -105,25 +106,6 @@ class BreakTransform(nn.Module):
         return x
 
 
-class MixTransform(nn.Module):
-    def __init__(self, snr_ceil=30, snr_floor=-5):
-        super().__init__()
-        self.snr_ceil = snr_ceil
-        self.snr_floor = snr_floor
-
-    def get_snr(self, n):
-        return (self.snr_floor - self.snr_ceil) * torch.rand([n]) + self.snr_ceil
-
-    def forward(self, speech, noise):
-        samples = speech.size(0)
-        snr = self.get_snr(samples)
-        noise = noise * torch.norm(speech) / torch.norm(noise)
-        scalar = torch.pow(10.0, (0.05 * snr)).reshape([speech.size(0), 1])
-        noise = torch.div(noise, scalar)
-        mix = speech + noise
-        return mix
-
-
 class ReverbTransform(nn.Module):
     def __init__(self, sample_rate=24000):
         super().__init__()
@@ -154,6 +136,8 @@ class SpecTransform(nn.Module):
         return a1, a2, b1, b2
 
     def forward(self, x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
         a1, a2, b1, b2 = self._rand_resp()
         x = torchaudio.functional.biquad(
             x, 1, self.b_hp[0], self.b_hp[1], 1, self.a_hp[0], self.a_hp[1]
@@ -184,11 +168,13 @@ class VolTransform(nn.Module):
         return segments
 
     def forward(self, x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
         step_db = self.get_vol(x.size(0))
         for i in range(step_db.size(0)):
             start = i * self.segment_samples
             end = min((i + 1) * self.segment_samples, x.size(0))
-            x[:, start:end] = self.apply_gain(x[:, start:end], step_db[i])
+            x[start:end] = self.apply_gain(x[start:end], step_db[i])
 
         return x
 
@@ -203,7 +189,6 @@ class RandomTransform(nn.Module):
             FilterTransform(),
             ClipTransform(),
             BreakTransform(),
-            MixTransform(),
             ReverbTransform(),
             SpecTransform(),
             VolTransform(),
