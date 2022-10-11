@@ -107,7 +107,7 @@ class BreakTransform(nn.Module):
     def __init__(
         self,
         sample_rate=24000,
-        break_duration=0.01,
+        break_duration=0.0001,
         break_ceil=50,
         break_floor=10,
         probability=0.5,
