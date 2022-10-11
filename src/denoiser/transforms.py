@@ -22,8 +22,8 @@ class GaussianNoise(nn.Module):
         """Forward Pass."""
         intensity = self.intensity_dist.sample()
         noise = torch.randn_like(x) * intensity
-        x += noise
-        return x
+        noisy = x + noise
+        return noisy
 
 
 class FilterTransform(nn.Module):
@@ -185,8 +185,8 @@ class RandomTransform(nn.Module):
     def __init__(
         self,
         transforms: Tuple[nn.Module] = (
-            GaussianNoise(),
             ReverbTransform(),
+            GaussianNoise(),
         ),
         probability=0.9,
     ):
