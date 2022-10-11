@@ -182,7 +182,7 @@ class WaveUNet(pl.LightningModule):
         """Train step."""
 
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+        loss = F.mse_loss(logits, batch.noisy_audio - batch.audio)
 
         snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
@@ -196,7 +196,7 @@ class WaveUNet(pl.LightningModule):
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+        loss = F.mse_loss(logits, batch.noisy_audio - batch.audio)
         snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
@@ -220,7 +220,7 @@ class WaveUNet(pl.LightningModule):
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+        loss = F.mse_loss(logits, batch.noisy_audio - batch.audio)
         snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("test_loss", loss, batch_size=batch.audio.size(1))
