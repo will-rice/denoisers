@@ -140,7 +140,7 @@ class WaveUNet(pl.LightningModule):
             o = self.encoder[i](o)
             skip_connections.append(o)
             # [batch_size, T // 2, channels]
-            # o = o[:, :, ::2]
+            o = o[:, :, ::2]
 
         o = self.middle(o)
 
