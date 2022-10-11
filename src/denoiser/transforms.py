@@ -54,6 +54,9 @@ class FilterTransform(nn.Module):
         return (self.freq_floor - self.freq_ceil) * random.random() + self.freq_ceil
 
     def forward(self, x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
+
         gain = self.get_gain()
         center_freq = self.get_center_freq()
 
@@ -77,6 +80,9 @@ class ClipTransform(nn.Module):
         return (self.clip_floor - self.clip_ceil) * random.random() + self.clip_ceil
 
     def forward(self, x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
+
         clip_level = self.get_clip()
         x[torch.abs(x) > clip_level] = clip_level
         return x
@@ -104,6 +110,9 @@ class BreakTransform(nn.Module):
         return mask
 
     def forward(self, x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
+
         break_mask = self.get_mask(x)
         x = x * break_mask
         return x
@@ -141,6 +150,7 @@ class SpecTransform(nn.Module):
     def forward(self, x):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
+
         a1, a2, b1, b2 = self._rand_resp()
         x = torchaudio.functional.biquad(
             x, 1, self.b_hp[0], self.b_hp[1], 1, self.a_hp[0], self.a_hp[1]
@@ -173,6 +183,7 @@ class VolTransform(nn.Module):
     def forward(self, x):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
+
         step_db = self.get_vol(x.size(0))
         for i in range(step_db.size(0)):
             start = i * self.segment_samples
