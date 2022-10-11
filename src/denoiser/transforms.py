@@ -186,12 +186,7 @@ class RandomTransform(nn.Module):
         self,
         transforms: Tuple[nn.Module] = (
             GaussianNoise(),
-            FilterTransform(),
-            ClipTransform(),
-            BreakTransform(),
             ReverbTransform(),
-            SpecTransform(),
-            VolTransform(),
         ),
         probability=0.5,
     ):
