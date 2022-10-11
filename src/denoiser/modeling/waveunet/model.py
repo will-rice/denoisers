@@ -29,7 +29,7 @@ class DownSamplingLayer(nn.Module):
         dilation: int = 1,
         kernel_size: int = 15,
         stride: int = 1,
-        padding: int = 7,
+        padding: int = "same",
     ):
         super().__init__()
         self.main = nn.Sequential(
@@ -43,7 +43,6 @@ class DownSamplingLayer(nn.Module):
             ),
             nn.BatchNorm1d(channel_out),
             nn.LeakyReLU(negative_slope=0.1),
-            nn.AdaptiveAvgPool1d(2),
         )
 
     def forward(self, ipt: Tensor) -> Tensor:
@@ -57,7 +56,7 @@ class UpSamplingLayer(nn.Module):
         channel_out: int,
         kernel_size: int = 5,
         stride: int = 1,
-        padding: int = 2,
+        padding: int = "same",
     ):
         super(UpSamplingLayer, self).__init__()
         self.main = nn.Sequential(
@@ -101,6 +100,7 @@ class WaveUNet(pl.LightningModule):
                     channel_out=encoder_out_channels_list[i],
                 )
             )
+        self.pool = nn.AdaptiveAvgPool1d(2)
 
         self.middle = nn.Sequential(
             nn.Conv1d(
@@ -108,7 +108,7 @@ class WaveUNet(pl.LightningModule):
                 self.n_layers * self.channels_interval,
                 15,
                 stride=1,
-                padding=7,
+                padding="same",
             ),
             nn.BatchNorm1d(self.n_layers * self.channels_interval),
             nn.LeakyReLU(negative_slope=0.1, inplace=True),
@@ -141,7 +141,7 @@ class WaveUNet(pl.LightningModule):
             o = self.encoder[i](o)
             skip_connections.append(o)
             # [batch_size, T // 2, channels]
-            # o = o[:, :, ::2]
+            o = self.pool(o)
 
         o = self.middle(o)
 
@@ -151,6 +151,7 @@ class WaveUNet(pl.LightningModule):
             o = F.interpolate(o, scale_factor=2, mode="linear", align_corners=True)
             # Skip Connection
             o = torch.cat([o, skip_connections[self.n_layers - i - 1]], dim=1)
+
             o = self.decoder[i](o)
 
         o = torch.cat([o, inputs], dim=1)
