@@ -43,7 +43,6 @@ class DownSamplingLayer(nn.Module):
             ),
             nn.BatchNorm1d(channel_out),
             nn.LeakyReLU(negative_slope=0.1),
-            nn.AdaptiveAvgPool1d(2),
         )
 
     def forward(self, ipt: Tensor) -> Tensor:
@@ -141,6 +140,7 @@ class WaveUNet(pl.LightningModule):
             o = self.encoder[i](o)
             skip_connections.append(o)
             # [batch_size, T // 2, channels]
+            o = o[:, :, ::2]
 
         o = self.middle(o)
 
