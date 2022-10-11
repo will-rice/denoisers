@@ -21,141 +21,160 @@ class WaveUNetOutputs:
     logits: Tensor
 
 
-class DownSamplingLayer(nn.Module):
+class DownSamplingBlock(nn.Module):
+    """downsample and apply normalization"""
+
     def __init__(
         self,
-        channel_in: int,
-        channel_out: int,
-        dilation: int = 1,
-        kernel_size: int = 15,
-        stride: int = 1,
-        padding: int = 7,
+        in_channels,
+        out_channels,
+        kernel_size,
+        padding="same",
+        dropout=0.0,
     ):
         super().__init__()
-        self.main = nn.Sequential(
-            nn.Conv1d(
-                channel_in,
-                channel_out,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-                dilation=dilation,
-            ),
-            nn.BatchNorm1d(channel_out),
-            nn.LeakyReLU(negative_slope=0.1),
+        self.conv_1 = nn.Conv1d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
         )
-
-    def forward(self, ipt: Tensor) -> Tensor:
-        return self.main(ipt)
-
-
-class UpSamplingLayer(nn.Module):
-    def __init__(
-        self,
-        channel_in: int,
-        channel_out: int,
-        kernel_size: int = 5,
-        stride: int = 1,
-        padding: int = 2,
-    ):
-        super(UpSamplingLayer, self).__init__()
-        self.main = nn.Sequential(
-            nn.Conv1d(
-                channel_in,
-                channel_out,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-            ),
-            nn.BatchNorm1d(channel_out),
-            nn.LeakyReLU(negative_slope=0.1, inplace=True),
+        self.batch_norm_1 = nn.BatchNorm1d(out_channels)
+        self.activation_1 = nn.LeakyReLU(0.1)
+        self.conv_2 = nn.Conv1d(
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
         )
+        self.batch_norm_2 = nn.BatchNorm1d(out_channels)
+        self.activation_2 = nn.LeakyReLU(0.1)
+        self.max_pool = nn.AvgPool1d(2)
+        self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x: Tensor) -> Tensor:
-        return self.main(x)
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        """forward pass"""
+        out = self.conv_1(inputs)
+        out = self.batch_norm_1(out)
+        out = self.activation_1(out)
+        out = self.conv_2(out)
+        out = self.batch_norm_2(out)
+        out = self.activation_2(out)
+        out = self.max_pool(out)
+        out = self.dropout(out)
+        return out
+
+
+class UpSamplingBlock(nn.Module):
+    """upsample and convolve"""
+
+    def __init__(self, in_channels, out_channels, kernel_size, padding="same"):
+        super().__init__()
+        self.upsample = nn.Upsample(scale_factor=2)
+        self.conv = nn.Conv1d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            padding=padding,
+        )
+        self.activation = nn.LeakyReLU(0.1)
+
+    def forward(self, inputs):
+        """forward pass"""
+        out = self.upsample(inputs)
+        out = self.conv(out)
+        out = self.activation(out)
+        return out
+
+
+class Middle(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1):
+        super().__init__()
+        self.conv = nn.Conv1d(
+            in_channels=in_channels,
+            out_channels=out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding="same",
+        )
+        self.batch_norm = nn.BatchNorm1d(out_channels)
+        self.activation = nn.LeakyReLU(0.1)
+
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        out = self.conv(inputs)
+        out = self.batch_norm(out)
+        out = self.activation(out)
+        return out
 
 
 class WaveUNet(pl.LightningModule):
     """WaveUNet Model."""
 
-    def __init__(self, n_layers: int = 12, channels_interval: int = 24):
+    def __init__(self, conv_sizes=(16, 32, 64, 128, 256, 512), middle_out_channels=128):
         super().__init__()
+        self.conv_sizes = conv_sizes
 
-        self.n_layers = n_layers
-        self.channels_interval = channels_interval
-        encoder_in_channels_list = [1] + [
-            i * self.channels_interval for i in range(1, self.n_layers)
-        ]
-        encoder_out_channels_list = [
-            i * self.channels_interval for i in range(1, self.n_layers + 1)
-        ]
-
-        # 1=>2=>3=>4=>5=>6=>7=>8=>9=>10=>11=>12
-        # 16384=>8192=>4096=>2048=>1024=>512=>256=>128=>64=>32=>16=>8=>4
-        self.encoder = nn.ModuleList()
-        for i in range(self.n_layers):
-            self.encoder.append(
-                DownSamplingLayer(
-                    channel_in=encoder_in_channels_list[i],
-                    channel_out=encoder_out_channels_list[i],
+        self.encoder_layers = nn.ModuleList()
+        for i in range(len(self.conv_sizes)):
+            in_channels = 1 if i == 0 else conv_sizes[i - 1]
+            self.encoder_layers.append(
+                DownSamplingBlock(
+                    in_channels=in_channels,
+                    out_channels=self.conv_sizes[i],
+                    kernel_size=2**i,
                 )
             )
 
-        self.middle = nn.Sequential(
-            nn.Conv1d(
-                self.n_layers * self.channels_interval,
-                self.n_layers * self.channels_interval,
-                15,
-                stride=1,
-                padding=7,
-            ),
-            nn.BatchNorm1d(self.n_layers * self.channels_interval),
-            nn.LeakyReLU(negative_slope=0.1, inplace=True),
+        self.middle = Middle(
+            in_channels=conv_sizes[-1], out_channels=middle_out_channels, kernel_size=16
         )
 
-        decoder_in_channels_list = [
-            (2 * i + 1) * self.channels_interval for i in range(1, self.n_layers)
-        ] + [2 * self.n_layers * self.channels_interval]
-        decoder_in_channels_list = decoder_in_channels_list[::-1]
-        decoder_out_channels_list = encoder_out_channels_list[::-1]
-        self.decoder = nn.ModuleList()
-        for i in range(self.n_layers):
-            self.decoder.append(
-                UpSamplingLayer(
-                    channel_in=decoder_in_channels_list[i],
-                    channel_out=decoder_out_channels_list[i],
+        self.decoder_layers = nn.ModuleList()
+        for i in reversed(range(len(self.conv_sizes))):
+
+            if i == len(self.conv_sizes) - 1:
+                in_channels = self.conv_sizes[i] + middle_out_channels
+            else:
+                in_channels = self.conv_sizes[i] * 3
+
+            self.decoder_layers.append(
+                UpSamplingBlock(
+                    in_channels=in_channels,
+                    out_channels=self.conv_sizes[i],
+                    kernel_size=2**i,
                 )
             )
 
-        self.out = nn.Sequential(
-            nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
+        self.out_conv = nn.Sequential(
+            nn.Conv1d(
+                in_channels=self.conv_sizes[0],
+                out_channels=1,
+                kernel_size=1,
+                padding="same",
+            ),
+            nn.Tanh(),
         )
         self.snr = SignalNoiseRatio()
 
-    def forward(self, inputs: Tensor) -> Tensor:
-        o = inputs
+    def forward(self, inputs):
+        """forward pass"""
+        out = inputs
+        residual = out
 
         skip_connections = []
-        for i in range(self.n_layers):
-            o = self.encoder[i](o)
-            skip_connections.append(o)
-            # [batch_size, T // 2, channels]
-            o = o[:, :, ::2]
+        for layer in self.encoder_layers:
+            out = layer(out)
+            skip_connections.append(out)
 
-        o = self.middle(o)
+        out = self.middle(out)
 
-        # Down Sampling
-        for i in range(self.n_layers):
-            # [batch_size, T * 2, channels]
-            o = F.interpolate(o, scale_factor=2, mode="linear", align_corners=True)
-            # Skip Connection
-            o = torch.cat([o, skip_connections[self.n_layers - i - 1]], dim=1)
-            o = self.decoder[i](o)
+        for layer, skip in zip(self.decoder_layers, reversed(skip_connections)):
+            out = torch.cat([out, skip], axis=1)
+            out = layer(out)
 
-        o = torch.cat([o, inputs], dim=1)
-        o = self.out(o)
-        o = o.clamp(-1.0, 1.0)
-        return o.to(torch.float32)
+        out += residual
+        out = self.out_conv(out)
+        return out.to(torch.float32).clamp(-1.0, 1.0)
 
     def training_step(
         self, batch: Sample, batch_idx: Any
@@ -163,9 +182,9 @@ class WaveUNet(pl.LightningModule):
         """Train step."""
 
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.audio)
+        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
 
-        snr = self.snr(logits, batch.audio)
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("train_loss", loss, batch_size=batch.audio.size(1))
         self.log("train_snr", snr, batch_size=batch.audio.size(1))
@@ -177,15 +196,15 @@ class WaveUNet(pl.LightningModule):
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.audio)
-        snr = self.snr(logits, batch.audio)
+        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("val_loss", loss, batch_size=batch.audio.size(1))
         self.log("val_snr", snr, batch_size=batch.audio.size(1))
 
         return {
             "loss": loss,
-            "outputs": (batch.audio, batch.noisy_audio, logits),
+            "outputs": (batch.audio, batch.noisy_audio, batch.noisy_audio - logits),
         }
 
     def validation_epoch_end(
@@ -201,13 +220,15 @@ class WaveUNet(pl.LightningModule):
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.audio)
-        snr = self.snr(logits, batch.audio)
+        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log("test_loss", loss, batch_size=batch.audio.size(1))
         self.log("test_snr", snr, batch_size=batch.audio.size(1))
 
-        log_audio_batch(batch.audio, batch.noisy_audio, logits, "test")
+        log_audio_batch(
+            batch.audio, batch.noisy_audio, batch.noisy_audio - logits, "test"
+        )
 
         return loss
 
