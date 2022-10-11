@@ -132,12 +132,17 @@ class LibriTTSDataModule(pl.LightningDataModule):
             sample = torch.clamp(sample, -1.0, 1.0)
             audio_length = sample.size(0)
 
+            if audio_length == 0:
+                continue
+
             if audio_length < self.max_length:
                 padded = F.pad(sample, (0, self.max_length))
             else:
                 padded = sample
-
-            random_idx = torch.randint(high=padded.size(0) - self.max_length, size=())
+            print(padded.size(0) - self.max_length)
+            random_idx = torch.randint(
+                high=padded.size(0) - self.max_length, size=(), low=0
+            )
             padded = padded[random_idx : random_idx + self.max_length]
 
             noisy = torch.clone(padded)
