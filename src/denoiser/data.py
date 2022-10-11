@@ -138,9 +138,6 @@ class LibriTTSDataModule(pl.LightningDataModule):
             else:
                 padded = sample
 
-            if padded.size(0) - self.max_length <= 0:
-                print(audio_length)
-
             random_idx = torch.randint(
                 high=padded.size(0) - self.max_length + 1, size=()
             )
