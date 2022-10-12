@@ -242,7 +242,7 @@ class RandomTransform(nn.Module):
     def __init__(
         self,
         transforms: Tuple[nn.Module] = (
-            ReverbTransform(probability=1.0),
+            ReverbTransform(probability=0.9),
             GaussianNoise(probability=1.0),
             # VolTransform(),
             # FilterTransform(),
