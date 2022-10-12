@@ -110,9 +110,15 @@ class Middle(nn.Module):
 class WaveUNet(pl.LightningModule):
     """WaveUNet Model."""
 
-    def __init__(self, conv_sizes=(16, 32, 64, 128, 256, 512), middle_out_channels=128):
+    def __init__(
+        self,
+        conv_sizes=(16, 32, 64, 128, 256, 512),
+        middle_out_channels=128,
+        autoencoder=True,
+    ):
         super().__init__()
         self.conv_sizes = conv_sizes
+        self.autoencoder = autoencoder
 
         self.encoder_layers = nn.ModuleList()
         for i in range(len(self.conv_sizes)):
@@ -180,14 +186,18 @@ class WaveUNet(pl.LightningModule):
         self, batch: Sample, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
-
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
 
-        snr = self.snr(batch.noisy_audio - logits, batch.audio)
+        if self.autoencoder:
+            loss = F.l1_loss(logits, batch.audio)
+            snr = self.snr(logits, batch.audio)
+        else:
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
-        self.log("train_loss", loss, batch_size=batch.audio.size(1))
-        self.log("train_snr", snr, batch_size=batch.audio.size(1))
+        self.log_dict(
+            {"train_loss": loss, "train_snr": snr}, batch_size=batch.audio.size(1)
+        )
 
         return loss
 
@@ -196,15 +206,23 @@ class WaveUNet(pl.LightningModule):
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
-        self.log("val_loss", loss, batch_size=batch.audio.size(1))
-        self.log("val_snr", snr, batch_size=batch.audio.size(1))
+        if self.autoencoder:
+            loss = F.l1_loss(logits, batch.audio)
+            snr = self.snr(logits, batch.audio)
+            pred = logits
+        else:
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            pred = batch.noisy_audio - logits
+
+        self.log_dict(
+            {"val_loss": loss, "val_snr": snr}, batch_size=batch.audio.size(1)
+        )
 
         return {
             "loss": loss,
-            "outputs": (batch.audio, batch.noisy_audio, batch.noisy_audio - logits),
+            "outputs": (batch.audio, batch.noisy_audio, pred),
         }
 
     def validation_epoch_end(
@@ -220,17 +238,24 @@ class WaveUNet(pl.LightningModule):
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
         logits = self(batch.noisy_audio)
-        loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-        snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
-        self.log("test_loss", loss, batch_size=batch.audio.size(1))
-        self.log("test_snr", snr, batch_size=batch.audio.size(1))
+        if self.autoencoder:
+            loss = F.l1_loss(logits, batch.audio)
+            snr = self.snr(logits, batch.audio)
+            pred = logits
+        else:
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            pred = batch.noisy_audio - logits
 
-        log_audio_batch(
-            batch.audio, batch.noisy_audio, batch.noisy_audio - logits, "test"
+        self.log_dict(
+            {"test_loss": loss, "test_snr": snr}, batch_size=batch.audio.size(1)
         )
 
-        return loss
+        return {
+            "loss": loss,
+            "outputs": (batch.audio, batch.noisy_audio, pred),
+        }
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
