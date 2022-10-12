@@ -154,7 +154,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
 
             # scale to 0, 1
             noisy = self.scale(noisy).clamp(-1.0, 1.0)
-            padded = self.scale(padded).clamp(-1.0, 1.0)
+            # padded = self.scale(padded).clamp(-1.0, 1.0)
             spec = self.scale(spec)
             noisy_spec = self.scale(noisy_spec)
 
