@@ -39,7 +39,6 @@ def main() -> None:
         name=args.name,
         offline=args.debug,
     )
-    logger.watch(model)
 
     early_stopping = pl.callbacks.EarlyStopping("val_loss")
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
@@ -56,6 +55,8 @@ def main() -> None:
         precision=16,
         callbacks=[checkpoint_callback, swa_callback, early_stopping],
     )
+    logger.watch(model)
+
     trainer.fit(model, datamodule=datamodule)
     trainer.test(model, datamodule=datamodule)
 
