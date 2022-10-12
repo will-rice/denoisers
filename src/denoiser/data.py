@@ -146,15 +146,15 @@ class LibriTTSDataModule(pl.LightningDataModule):
             noisy = torch.clone(padded)
             noisy = self.transform(noisy)
             noisy = torch.FloatTensor(noisy)
-            noisy = torch.clamp(noisy, -1.0, 1.0)
+            # noisy = torch.clamp(noisy, -1.0, 1.0)
 
             spec = self.get_spectrogram(padded)
             noisy_spec = self.get_spectrogram(noisy)
             spec_length = spec.size(1)
 
             # scale to 0, 1
-            noisy = self.scale(noisy)
-            padded = self.scale(padded)
+            noisy = self.scale(noisy).clamp(-1.0, 1.0)
+            padded = self.scale(padded).clamp(-1.0, 1.0)
             spec = self.scale(spec)
             noisy_spec = self.scale(noisy_spec)
 
