@@ -29,7 +29,6 @@ class GaussianNoise(nn.Module):
         if random.random() < self.probability:
 
             intensity = self.intensity_dist.sample()
-            print(intensity)
             noise = torch.randn_like(x) * intensity
             x += noise
 
@@ -244,9 +243,9 @@ class RandomTransform(nn.Module):
         self,
         transforms: Tuple[nn.Module] = (
             ReverbTransform(probability=0.9),
-            GaussianNoise(probability=1.0),
-            # VolTransform(),
-            # FilterTransform(),
+            GaussianNoise(probability=0.9),
+            VolTransform(),
+            FilterTransform(),
             # ClipTransform(),
             # BreakTransform(),
             # SpecTransform(),
