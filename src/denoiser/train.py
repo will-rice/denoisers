@@ -40,7 +40,7 @@ def main() -> None:
         offline=args.debug,
     )
 
-    early_stopping = pl.callbacks.EarlyStopping("val_loss")
+    early_stopping = pl.callbacks.EarlyStopping("val_loss", patience=100)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=args.log_path / args.name, filename="{epoch}-{val_loss:.2f}"
     )
@@ -48,7 +48,7 @@ def main() -> None:
 
     trainer = pl.Trainer(
         default_root_dir="logs",
-        max_epochs=1000,
+        max_epochs=300,
         accelerator="auto",
         devices=args.num_devices,
         logger=logger,

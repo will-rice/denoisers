@@ -39,8 +39,10 @@ def log_audio_batch(
 
     wandb.log(
         {
-            f"{name}_clean": wandb.Audio(np_clean, sample_rate=24000),
-            f"{name}_noisy": wandb.Audio(np_noisy, sample_rate=24000),
-            f"{name}_pred": wandb.Audio(np_pred, sample_rate=24000),
+            f"{name}_audio": {
+                f"{name}_clean": wandb.Audio(np_clean, sample_rate=24000),
+                f"{name}_noisy": wandb.Audio(np_noisy, sample_rate=24000),
+                f"{name}_pred": wandb.Audio(np_pred, sample_rate=24000),
+            }
         }
     )

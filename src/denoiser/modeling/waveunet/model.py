@@ -114,7 +114,7 @@ class WaveUNet(pl.LightningModule):
         self,
         conv_sizes=(16, 32, 64, 128, 256, 512),
         middle_out_channels=128,
-        autoencoder=True,
+        autoencoder=False,
     ):
         super().__init__()
         self.save_hyperparameters()
