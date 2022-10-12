@@ -34,11 +34,14 @@ def main() -> None:
     datamodule = LibriTTSDataModule(args.data_path, batch_size=args.batch_size)
     logger = loggers.WandbLogger(
         project=args.project,
-        save_dir=args.log_path,
+        save_dir=args.log_path / args.name,
         log_model=False if args.debug else "all",
         name=args.name,
         offline=args.debug,
     )
+    logger.watch(model)
+
+    early_stopping = pl.callbacks.EarlyStopping("val_loss")
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=args.log_path / args.name, filename="{epoch}-{val_loss:.2f}"
     )
@@ -51,7 +54,7 @@ def main() -> None:
         devices=args.num_devices,
         logger=logger,
         precision=16,
-        callbacks=[checkpoint_callback, swa_callback],
+        callbacks=[checkpoint_callback, swa_callback, early_stopping],
     )
     trainer.fit(model, datamodule=datamodule)
     trainer.test(model, datamodule=datamodule)
