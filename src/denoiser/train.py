@@ -49,6 +49,7 @@ def main() -> None:
     trainer = pl.Trainer(
         default_root_dir="logs",
         max_epochs=300,
+        min_epochs=100,
         accelerator="auto",
         devices=args.num_devices,
         logger=logger,
