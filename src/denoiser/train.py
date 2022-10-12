@@ -44,7 +44,7 @@ def main() -> None:
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=args.log_path / args.name, filename="{epoch}-{val_loss:.2f}"
     )
-    swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=0.05)
+    swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=3e-4)
 
     trainer = pl.Trainer(
         default_root_dir="logs",

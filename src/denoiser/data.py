@@ -152,6 +152,12 @@ class LibriTTSDataModule(pl.LightningDataModule):
             noisy_spec = self.get_spectrogram(noisy)
             spec_length = spec.size(1)
 
+            # scale to 0, 1
+            noisy = self.scale(noisy)
+            padded = self.scale(padded)
+            spec = self.scale(spec)
+            noisy_spec = self.scale(noisy_spec)
+
             audio.append(padded)
             audio_lengths.append(audio_length)
             noisy_audio.append(noisy)
@@ -178,3 +184,8 @@ class LibriTTSDataModule(pl.LightningDataModule):
         ).abs()
 
         return spec
+
+    def scale(self, inputs: Tensor) -> Tensor:
+        inputs += inputs.mean()
+        inputs /= inputs.std()
+        return inputs
