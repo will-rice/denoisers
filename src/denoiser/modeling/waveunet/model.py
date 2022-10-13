@@ -228,9 +228,9 @@ class WaveUNet(pl.LightningModule):
             power=2.0,
         )
 
-        original_spec = lr.power_to_db(spectrogram(audio.to("cpu")))
-        noisy_spec = lr.power_to_db(spectrogram(noisy.to("cpu")))
-        pred_spec = lr.power_to_db(spectrogram(pred.to("cpu")))
+        original_spec = lr.power_to_db(spectrogram(torch.from_numpy(audio)))
+        noisy_spec = lr.power_to_db(spectrogram(torch.from_numpy(noisy)))
+        pred_spec = lr.power_to_db(spectrogram(torch.from_numpy(pred)))
 
         plot_image_batch(original_spec, noisy_spec, pred_spec, "val")
 
