@@ -17,10 +17,10 @@ class Sample(NamedTuple):
 
     audio: Tensor
     noisy_audio: Tensor
-    audio_lengths: List[int]
+    audio_lengths: Tensor
     specs: Tensor
     noisy_specs: Tensor
-    spec_lengths: List[int]
+    spec_lengths: Tensor
 
 
 class LibriTTSDataModule(pl.LightningDataModule):
@@ -161,10 +161,10 @@ class LibriTTSDataModule(pl.LightningDataModule):
 
         return Sample(
             audio=torch.stack(audio).unsqueeze(1),
-            audio_lengths=audio_lengths,
+            audio_lengths=torch.stack(audio_lengths),
             noisy_audio=torch.stack(noisy_audio).unsqueeze(1),
             specs=torch.stack(specs).unsqueeze(1),
-            spec_lengths=spec_lengths,
+            spec_lengths=torch.stack(spec_lengths),
             noisy_specs=torch.stack(noisy_specs).unsqueeze(1),
         )
 

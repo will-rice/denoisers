@@ -4,7 +4,7 @@ import torch
 import wandb
 
 
-def sequence_mask(lengths, maxlen=None, dtype=torch.bool):
+def sequence_mask(lengths, maxlen=None, dtype=torch.float32):
     if maxlen is None:
         maxlen = lengths.max()
     row_vector = torch.arange(0, maxlen, 1)
