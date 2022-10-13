@@ -12,6 +12,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
+from src.denoiser import utils
 from src.denoiser.data import Sample
 from src.denoiser.utils import log_audio_batch, plot_image_batch
 
@@ -172,7 +173,11 @@ class WaveUNet(pl.LightningModule):
         self, batch: Sample, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
+        masks = utils.sequence_mask(
+            batch.audio_lengths, batch.noisy_audio.size(-1), dtype=torch.float32
+        )
         logits = self(batch.noisy_audio)
+        logits *= masks
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
@@ -191,7 +196,11 @@ class WaveUNet(pl.LightningModule):
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
+        masks = utils.sequence_mask(
+            batch.audio_lengths, batch.noisy_audio.size(-1), dtype=torch.float32
+        )
         logits = self(batch.noisy_audio)
+        logits *= masks
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
@@ -238,7 +247,11 @@ class WaveUNet(pl.LightningModule):
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
+        masks = utils.sequence_mask(
+            batch.audio_lengths, batch.noisy_audio.size(-1), dtype=torch.float32
+        )
         logits = self(batch.noisy_audio)
+        logits *= masks
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)

@@ -4,6 +4,14 @@ import torch
 import wandb
 
 
+def sequence_mask(lengths, maxlen, dtype=torch.bool):
+    if maxlen is None:
+        maxlen = lengths.max()
+    mask = ~(torch.ones((len(lengths), maxlen)).cumsum(dim=1).t() > lengths).t()
+    mask.type(dtype)
+    return mask
+
+
 def plot_image_batch(
     clean: torch.Tensor,
     noisy: torch.Tensor,
