@@ -26,15 +26,15 @@ def plot_image_batch(
     for i, (c, n, p) in enumerate(zip(np_clean, np_noisy, np_pred)):
         ax[i][0].imshow(c, origin="lower", aspect="auto")
         ax[i][0].axis("off")
-        ax[i][0].set_text("clean")
+        ax[i][0].title.set_text("clean")
 
         ax[i][1].imshow(n, origin="lower", aspect="auto")
         ax[i][1].axis("off")
-        ax[i][1].set_text("noisy")
+        ax[i][1].title.set_text("noisy")
 
         ax[i][2].imshow(p, origin="lower", aspect="auto")
         ax[i][2].axis("off")
-        ax[i][2].set_text("preds")
+        ax[i][2].title.set_text("preds")
 
     wandb.log({f"{name}_images": wandb.Image(fig)})
 
