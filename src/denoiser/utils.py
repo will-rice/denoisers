@@ -4,14 +4,11 @@ import torch
 import wandb
 
 
-def sequence_mask(lengths, maxlen=None, dtype=torch.float32):
-    if maxlen is None:
-        maxlen = lengths.max()
-    row_vector = torch.arange(0, maxlen, 1)
-    matrix = torch.unsqueeze(lengths, dim=-1)
-    mask = row_vector < matrix
-
-    mask.type(dtype)
+def sequence_mask(length, max_length=None):
+    if max_length is None:
+        max_length = length.max()
+    x = torch.arange(max_length, dtype=length.dtype, device=length.device)
+    mask = x.unsqueeze(0) < length.unsqueeze(1)
     return mask
 
 

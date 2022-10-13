@@ -153,10 +153,10 @@ class LibriTTSDataModule(pl.LightningDataModule):
             spec_length = spec.size(1)
 
             audio.append(padded)
-            audio_lengths.append(audio_length)
+            audio_lengths.append(torch.tensor(audio_length))
             noisy_audio.append(noisy)
             specs.append(spec)
-            spec_lengths.append(spec_length)
+            spec_lengths.append(torch.tensor(spec_length))
             noisy_specs.append(noisy_spec)
 
         return Sample(

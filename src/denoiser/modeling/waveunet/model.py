@@ -173,11 +173,9 @@ class WaveUNet(pl.LightningModule):
         self, batch: Sample, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
-        masks = utils.sequence_mask(
-            batch.audio_lengths, batch.noisy_audio.size(-1), dtype=torch.float32
-        )
+        masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits *= masks
+        logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
@@ -196,11 +194,9 @@ class WaveUNet(pl.LightningModule):
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
-        masks = utils.sequence_mask(
-            batch.audio_lengths, batch.noisy_audio.size(-1), dtype=torch.float32
-        )
+        masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits *= masks
+        logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
@@ -247,11 +243,9 @@ class WaveUNet(pl.LightningModule):
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
-        masks = utils.sequence_mask(
-            batch.audio_lengths, batch.noisy_audio.size(-1), dtype=torch.float32
-        )
+        masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits *= masks
+        logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
