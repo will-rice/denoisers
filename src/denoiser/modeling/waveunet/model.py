@@ -2,9 +2,11 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
+import librosa
 import librosa as lr
 import pytorch_lightning as pl
 import torch
+import torchaudio.functional
 import torchaudio.transforms as T
 from torch import Tensor, nn
 from torch.nn import functional as F
@@ -228,9 +230,11 @@ class WaveUNet(pl.LightningModule):
             power=2.0,
         )
 
-        original_spec = lr.power_to_db(spectrogram(torch.from_numpy(audio)))
-        noisy_spec = lr.power_to_db(spectrogram(torch.from_numpy(noisy)))
-        pred_spec = lr.power_to_db(spectrogram(torch.from_numpy(pred)))
+        original_spec = torch.from_numpy(librosa.power_to_db(spectrogram(audio)))
+        noisy_spec = torch.from_numpy(
+            librosa.power_to_db.power_to_db(spectrogram(noisy))
+        )
+        pred_spec = torch.from_numpy(librosa.power_to_db(spectrogram(pred)))
 
         plot_image_batch(original_spec, noisy_spec, pred_spec, "val")
 
