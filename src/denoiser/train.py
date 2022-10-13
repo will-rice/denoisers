@@ -51,6 +51,7 @@ def main() -> None:
         max_epochs=300,
         accelerator="auto",
         devices=args.num_devices,
+        ckpt_path=args.log_path / args.name,
         logger=logger,
         precision=16 if torch.cuda.is_available() else 32,
         callbacks=[checkpoint_callback, swa_callback, early_stopping],
