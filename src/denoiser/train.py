@@ -40,7 +40,7 @@ def main() -> None:
         offline=args.debug,
     )
 
-    early_stopping = pl.callbacks.EarlyStopping("val_loss", patience=100)
+    early_stopping = pl.callbacks.EarlyStopping("val_loss", patience=10)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=args.log_path / args.name, filename="{epoch}-{val_loss:.2f}"
     )

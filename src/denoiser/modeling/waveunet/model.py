@@ -158,6 +158,10 @@ class WaveUNet(pl.LightningModule):
 
         o = torch.cat([o, inputs], dim=1)
         o = self.out(o)
+
+        if not self.training:
+            o = o.clamp(-1.0, 1.0)
+
         return o.to(torch.float32)
 
     def training_step(

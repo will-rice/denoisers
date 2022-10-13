@@ -107,7 +107,7 @@ class BreakTransform(nn.Module):
     def __init__(
         self,
         sample_rate=24000,
-        break_duration=0.01,
+        break_duration=0.001,
         break_ceil=50,
         break_floor=10,
         probability=0.5,
@@ -246,9 +246,9 @@ class RandomTransform(nn.Module):
             GaussianNoise(probability=0.9),
             VolTransform(),
             FilterTransform(),
-            # ClipTransform(),
-            # BreakTransform(),
-            # SpecTransform(),
+            ClipTransform(),
+            BreakTransform(),
+            SpecTransform(),
         ),
     ):
         super().__init__()
