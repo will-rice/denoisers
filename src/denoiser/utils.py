@@ -4,10 +4,13 @@ import torch
 import wandb
 
 
-def sequence_mask(lengths, maxlen, dtype=torch.bool):
+def sequence_mask(lengths, maxlen=None, dtype=torch.bool):
     if maxlen is None:
         maxlen = lengths.max()
-    mask = ~(torch.ones((len(lengths), maxlen)).cumsum(dim=1).t() > lengths).t()
+    row_vector = torch.arange(0, maxlen, 1)
+    matrix = torch.unsqueeze(lengths, dim=-1)
+    mask = row_vector < matrix
+
     mask.type(dtype)
     return mask
 
