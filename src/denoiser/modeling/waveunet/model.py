@@ -223,7 +223,7 @@ class WaveUNet(pl.LightningModule):
 
         spectrogram = T.Spectrogram(
             n_fft=2048,
-            win_length=2048,
+            win_length=1024,
             hop_length=256,
             center=True,
             pad_mode="constant",
