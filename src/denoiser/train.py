@@ -47,12 +47,12 @@ def main() -> None:
     swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=3e-4)
 
     trainer = pl.Trainer(
-        default_root_dir="logs",
+        default_root_dir=args.log_path / args.name,
         max_epochs=300,
         accelerator="auto",
         devices=args.num_devices,
         logger=logger,
-        precision=16,
+        precision=16 if torch.cuda.is_available() else 32,
         callbacks=[checkpoint_callback, swa_callback, early_stopping],
     )
     logger.watch(model)

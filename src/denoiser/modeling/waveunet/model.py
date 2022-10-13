@@ -79,7 +79,7 @@ class WaveUNet(pl.LightningModule):
     """WaveUNet Model."""
 
     def __init__(
-        self, n_layers: int = 12, channels_interval: int = 24, autoencoder=False
+        self, n_layers: int = 12, channels_interval: int = 24, autoencoder=True
     ):
         super().__init__()
         self.save_hyperparameters()
