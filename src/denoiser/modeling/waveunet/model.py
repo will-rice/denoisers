@@ -223,18 +223,16 @@ class WaveUNet(pl.LightningModule):
 
         spectrogram = T.Spectrogram(
             n_fft=2048,
-            win_length=1024,
+            win_length=None,
             hop_length=256,
             center=True,
             pad_mode="constant",
             power=2.0,
         )
 
-        original_spec = torch.from_numpy(librosa.power_to_db(spectrogram(audio)))
-        noisy_spec = torch.from_numpy(
-            librosa.power_to_db.power_to_db(spectrogram(noisy))
-        )
-        pred_spec = torch.from_numpy(librosa.power_to_db(spectrogram(pred)))
+        original_spec = torch.from_numpy(lr.power_to_db(spectrogram(audio.to("cpu"))))
+        noisy_spec = torch.from_numpy(lr.power_to_db(spectrogram(noisy.to("cpu"))))
+        pred_spec = torch.from_numpy(lr.power_to_db(spectrogram(pred.to("cpu"))))
 
         plot_image_batch(original_spec, noisy_spec, pred_spec, "val")
 
