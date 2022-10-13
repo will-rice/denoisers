@@ -2,14 +2,16 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
+import librosa as lr
 import pytorch_lightning as pl
 import torch
+import torchaudio.transforms as T
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
 from src.denoiser.data import Sample
-from src.denoiser.utils import log_audio_batch
+from src.denoiser.utils import log_audio_batch, plot_image_batch
 
 
 @dataclass
@@ -216,6 +218,21 @@ class WaveUNet(pl.LightningModule):
     ) -> None:
         audio, noisy, pred = validation_step_outputs[-1]["outputs"]
         log_audio_batch(audio, noisy, pred, name="val")
+
+        spectrogram = T.Spectrogram(
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            center=True,
+            pad_mode="constant",
+            power=2.0,
+        )
+
+        original_spec = lr.power_to_db(spectrogram(audio))
+        noisy_spec = lr.power_to_db(spectrogram(noisy))
+        pred_spec = lr.power_to_db(spectrogram(pred))
+
+        plot_image_batch(original_spec, noisy_spec, pred_spec)
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
