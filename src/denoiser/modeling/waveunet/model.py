@@ -232,7 +232,7 @@ class WaveUNet(pl.LightningModule):
         noisy_spec = lr.power_to_db(spectrogram(noisy.to("cpu")))
         pred_spec = lr.power_to_db(spectrogram(pred.to("cpu")))
 
-        plot_image_batch(original_spec, noisy_spec, pred_spec)
+        plot_image_batch(original_spec, noisy_spec, pred_spec, "val")
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
