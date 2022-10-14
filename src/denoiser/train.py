@@ -29,12 +29,14 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    log_path = args.log_path / args.name
+
     model = WaveUNet()
 
     datamodule = LibriTTSDataModule(args.data_path, batch_size=args.batch_size)
     logger = loggers.WandbLogger(
         project=args.project,
-        save_dir=args.log_path / args.name,
+        save_dir=log_path,
         log_model=False if args.debug else "all",
         name=args.name,
         offline=args.debug,
@@ -42,12 +44,17 @@ def main() -> None:
 
     early_stopping = pl.callbacks.EarlyStopping("val_loss", patience=10)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
-        dirpath=args.log_path / args.name, filename="{epoch}-{val_loss:.2f}"
+        dirpath=log_path,
+        filename="{epoch}-{val_loss:.2f}",
+        save_last=True,
     )
     swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=3e-4)
 
+    last_checkpoint = log_path / "last.ckpt"
+
     trainer = pl.Trainer(
-        default_root_dir=args.log_path / args.name,
+        default_root_dir=log_path,
+        resume_from_checkpoint=last_checkpoint if last_checkpoint.exists() else None,
         max_epochs=300,
         accelerator="auto",
         devices=args.num_devices,
