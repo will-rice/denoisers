@@ -23,7 +23,7 @@ def main() -> None:
     )
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--dataset", default="libritts", type=str)
-    parser.add_argument("--seed", default=1234, type=int)
+    parser.add_argument("--seed", default=21, type=int)
     parser.add_argument("--debug", default=False, type=bool)
     parser.add_argument("--log_path", default="logs", type=Path)
 
@@ -57,7 +57,7 @@ def main() -> None:
     )
     logger.watch(model)
 
-    trainer.fit(model, datamodule=datamodule, ckpt_path=args.log_path / args.name)
+    trainer.fit(model, datamodule=datamodule)
     trainer.test(model, datamodule=datamodule)
 
 
