@@ -47,7 +47,7 @@ class DownSamplingLayer(nn.Module):
                 dilation=dilation,
             ),
             nn.BatchNorm1d(channel_out),
-            nn.LeakyReLU(negative_slope=0.1),
+            nn.LeakyReLU(negative_slope=0.2),
         )
 
     def forward(self, ipt: Tensor) -> Tensor:
@@ -73,7 +73,7 @@ class UpSamplingLayer(nn.Module):
                 padding=padding,
             ),
             nn.BatchNorm1d(channel_out),
-            nn.LeakyReLU(negative_slope=0.1, inplace=True),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -119,7 +119,7 @@ class WaveUNet(pl.LightningModule):
                 padding=7,
             ),
             nn.BatchNorm1d(self.n_layers * self.channels_interval),
-            nn.LeakyReLU(negative_slope=0.1, inplace=True),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
 
         decoder_in_channels_list = [
@@ -267,4 +267,4 @@ class WaveUNet(pl.LightningModule):
 
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
-        return torch.optim.AdamW(self.parameters(), lr=3e-4)
+        return torch.optim.AdamW(self.parameters(), lr=1e-4)

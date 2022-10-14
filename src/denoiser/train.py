@@ -30,6 +30,7 @@ def main() -> None:
     args = parser.parse_args()
 
     log_path = args.log_path / args.name
+    log_path.mkdir(exist_ok=True)
 
     model = WaveUNet()
 
@@ -42,10 +43,9 @@ def main() -> None:
         offline=args.debug,
     )
 
-    early_stopping = pl.callbacks.EarlyStopping("val_loss", patience=10)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=log_path,
-        filename="{epoch}-{val_loss:.2f}",
+        filename="{epoch}-{val_loss:.4f}",
         save_last=True,
     )
     swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=3e-4)
@@ -60,7 +60,7 @@ def main() -> None:
         devices=args.num_devices,
         logger=logger,
         precision=16 if torch.cuda.is_available() else 32,
-        callbacks=[checkpoint_callback, swa_callback, early_stopping],
+        callbacks=[checkpoint_callback, swa_callback],
     )
     logger.watch(model)
 
