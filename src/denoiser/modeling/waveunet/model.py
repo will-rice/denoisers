@@ -1,12 +1,11 @@
 """Wave UNet Model"""
+import math
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
-import librosa
 import librosa as lr
 import pytorch_lightning as pl
 import torch
-import torchaudio.functional
 import torchaudio.transforms as T
 from torch import Tensor, nn
 from torch.nn import functional as F
@@ -37,6 +36,7 @@ class DownSamplingLayer(nn.Module):
         padding: int = 7,
     ):
         super().__init__()
+        self.rel_pos_emb = nn.Embedding(2 * 16384 + 1, channel_out)
         self.main = nn.Sequential(
             nn.Conv1d(
                 channel_in,
@@ -50,8 +50,9 @@ class DownSamplingLayer(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
         )
 
-    def forward(self, ipt: Tensor) -> Tensor:
-        return self.main(ipt)
+    def forward(self, inputs: Tensor) -> Tensor:
+        pos_embed = self.rel_pos_emb(inputs)
+        return self.main(inputs) + pos_embed
 
 
 class UpSamplingLayer(nn.Module):
@@ -64,6 +65,7 @@ class UpSamplingLayer(nn.Module):
         padding: int = 2,
     ):
         super(UpSamplingLayer, self).__init__()
+        self.rel_pos_emb = nn.Embedding(2 * 16384 + 1, channel_out)
         self.main = nn.Sequential(
             nn.Conv1d(
                 channel_in,
@@ -77,7 +79,8 @@ class UpSamplingLayer(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        return self.main(x)
+        pos_embed = self.rel_pos_emb(x)
+        return self.main(x) + pos_embed
 
 
 class WaveUNet(pl.LightningModule):
@@ -92,6 +95,7 @@ class WaveUNet(pl.LightningModule):
         self.n_layers = n_layers
         self.channels_interval = channels_interval
         self.autoencoder = autoencoder
+
         encoder_in_channels_list = [1] + [
             i * self.channels_interval for i in range(1, self.n_layers)
         ]
