@@ -50,9 +50,9 @@ class DownSamplingLayer(nn.Module):
             nn.LeakyReLU(negative_slope=0.2),
         )
 
-    def forward(self, inputs: Tensor) -> Tensor:
-        pos_embed = self.rel_pos_emb(inputs)
-        return self.main(inputs) + pos_embed
+    def forward(self, x: Tensor) -> Tensor:
+        pos_embed = self.rel_pos_emb(torch.arange(x.size(2))).to(x.device)
+        return self.main(x) + pos_embed
 
 
 class UpSamplingLayer(nn.Module):
@@ -79,7 +79,7 @@ class UpSamplingLayer(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        pos_embed = self.rel_pos_emb(x)
+        pos_embed = self.rel_pos_emb(torch.arange(x.size(2))).to(x.device)
         return self.main(x) + pos_embed
 
 
