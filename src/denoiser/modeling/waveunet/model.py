@@ -51,9 +51,10 @@ class DownSamplingLayer(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        x = self.main(x)
         lengths = torch.arange(x.size(2)).to(x.device)
-        pos_embed = self.rel_pos_emb(lengths).to(x.device)
-        return self.main(x) + pos_embed
+        pos_embed = self.rel_pos_emb(lengths).to(x.device)[None, :, :]
+        return x + pos_embed.transpose(2, 1)
 
 
 class UpSamplingLayer(nn.Module):
@@ -80,9 +81,10 @@ class UpSamplingLayer(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
+        x = self.main(x)
         lengths = torch.arange(x.size(2)).to(x.device)
-        pos_embed = self.rel_pos_emb(lengths).to(x.device)
-        return self.main(x) + pos_embed
+        pos_embed = self.rel_pos_emb(lengths).to(x.device)[None, :, :]
+        return x + pos_embed.transpose(2, 1)
 
 
 class WaveUNet(pl.LightningModule):
