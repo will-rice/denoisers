@@ -51,7 +51,8 @@ class DownSamplingLayer(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        pos_embed = self.rel_pos_emb(torch.arange(x.size(2))).to(x.device)
+        lengths = torch.arange(x.size(2)).to(x.device)
+        pos_embed = self.rel_pos_emb(lengths).to(x.device)
         return self.main(x) + pos_embed
 
 
@@ -79,7 +80,8 @@ class UpSamplingLayer(nn.Module):
         )
 
     def forward(self, x: Tensor) -> Tensor:
-        pos_embed = self.rel_pos_emb(torch.arange(x.size(2))).to(x.device)
+        lengths = torch.arange(x.size(2)).to(x.device)
+        pos_embed = self.rel_pos_emb(lengths).to(x.device)
         return self.main(x) + pos_embed
 
 
