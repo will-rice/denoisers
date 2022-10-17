@@ -38,7 +38,6 @@ def main() -> None:
     logger = loggers.WandbLogger(
         project=args.project,
         save_dir=log_path,
-        log_model=False if args.debug else "all",
         name=args.name,
         offline=args.debug,
     )
@@ -63,7 +62,7 @@ def main() -> None:
         callbacks=[
             checkpoint_callback,
             swa_callback,
-            # early_stopping,
+            early_stopping,
         ],
         track_grad_norm=True,
     )

@@ -36,7 +36,6 @@ class DownSamplingLayer(nn.Module):
         padding: int = 7,
     ):
         super().__init__()
-        self.rel_pos_emb = nn.Embedding(2 * 16384 + 1, channel_out)
         self.main = nn.Sequential(
             nn.Conv1d(
                 channel_in,
@@ -52,9 +51,7 @@ class DownSamplingLayer(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.main(x)
-        lengths = torch.arange(x.size(2)).to(x.device)
-        pos_embed = self.rel_pos_emb(lengths).to(x.device)[None, :, :]
-        return x + pos_embed.transpose(2, 1)
+        return x
 
 
 class UpSamplingLayer(nn.Module):
@@ -67,7 +64,6 @@ class UpSamplingLayer(nn.Module):
         padding: int = 2,
     ):
         super(UpSamplingLayer, self).__init__()
-        self.rel_pos_emb = nn.Embedding(2 * 16384 + 1, channel_out)
         self.main = nn.Sequential(
             nn.Conv1d(
                 channel_in,
@@ -82,9 +78,7 @@ class UpSamplingLayer(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         x = self.main(x)
-        lengths = torch.arange(x.size(2)).to(x.device)
-        pos_embed = self.rel_pos_emb(lengths).to(x.device)[None, :, :]
-        return x + pos_embed.transpose(2, 1)
+        return x
 
 
 class WaveUNet(pl.LightningModule):
