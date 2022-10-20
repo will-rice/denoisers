@@ -275,7 +275,7 @@ class RandomTransform(nn.Module):
         self,
         transforms: Tuple[nn.Module] = (
             # ReverbFromFile(Path("/data-slow/BIRD/Bird"), probability=0.9),
-            ReverbFromSoundboard(probability=0.5),
+            ReverbFromSoundboard(probability=0.99),
             GaussianNoise(probability=0.9),
             VolTransform(),
             FilterTransform(),
