@@ -254,7 +254,7 @@ class ReverbFromFile(nn.Module):
 
         if random.random() < self.probability:
             rir_raw, sample_rate = torchaudio.load(random.choice(self.responses))
-            rir_raw = rir_raw[random.randint(0, rir_raw.shape[0])][None]
+            rir_raw = rir_raw[random.randint(0, rir_raw.shape[0] - 1)][None]
             rir_raw = T.Resample(sample_rate, self.sample_rate)(rir_raw)
             rir = rir_raw
             rir = rir / torch.norm(rir, p=2)
