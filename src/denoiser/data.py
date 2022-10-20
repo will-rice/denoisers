@@ -1,4 +1,5 @@
 """Data modules."""
+import os
 from pathlib import Path
 from typing import Any, NamedTuple, Optional
 
@@ -48,7 +49,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self,
         data_dir: str,
         batch_size: int = 24,
-        num_workers: int = 12,
+        num_workers: int = os.cpu_count(),
         max_length: int = 16384 * 6,
         n_fft: int = 2048,
         win_length: int = 1024,
