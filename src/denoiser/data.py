@@ -155,21 +155,23 @@ class LibriTTSDataModule(pl.LightningDataModule):
             sample = torch.clamp(sample, -1.0, 1.0)
             audio_length = sample.size(0)
 
-            if audio_length < self.max_length:
-                pad_length = self.max_length - audio_length
-                padded = F.pad(sample, (0, pad_length))
-            else:
-                padded = sample[: self.max_length]
-
             # random_idx = torch.randint(
             #    high=padded.size(0) - self.max_length + 1, size=()
             # )
             # padded = padded[random_idx : random_idx + self.max_length]
 
-            noisy = torch.clone(padded)
+            noisy = torch.clone(sample)
             noisy = self.transform(noisy)
             noisy = torch.FloatTensor(noisy)
             # noisy = torch.clamp(noisy, -1.0, 1.0)
+
+            if audio_length < self.max_length:
+                pad_length = self.max_length - audio_length
+                padded = F.pad(sample, (0, pad_length))
+                noisy = F.pad(noisy, (0, pad_length))
+            else:
+                padded = sample[: self.max_length]
+                noisy = noisy[: self.max_length]
 
             spec = self.get_spectrogram(padded)
             noisy_spec = self.get_spectrogram(noisy)
