@@ -13,6 +13,8 @@ from torch.utils.data import DataLoader, Dataset
 
 from src.denoiser.transforms import RandomTransform
 
+MAX_LENGTH = 16384 * 10
+
 
 class Sample(NamedTuple):
     """Sample object for easy access to model inputs."""
@@ -50,7 +52,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
         data_dir: str,
         batch_size: int = 24,
         num_workers: int = os.cpu_count(),
-        max_length: int = 16384 * 6,
+        max_length: int = MAX_LENGTH,
         n_fft: int = 2048,
         win_length: int = 1024,
         hop_length: int = 256,

@@ -10,7 +10,7 @@ from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
 from src.denoiser import utils
-from src.denoiser.data import Sample
+from src.denoiser.data import MAX_LENGTH, Sample
 from src.denoiser.modeling.waveunet.layers import ConvLayer, Resample1d, centre_crop
 from src.denoiser.utils import log_audio_batch, plot_image_batch
 
@@ -32,7 +32,7 @@ class WaveUNet(pl.LightningModule):
         num_channels=(32, 64, 96, 128, 160, 192, 224, 256),
         num_outputs=1,
         kernel_size=5,
-        target_output_size=16384 * 6,
+        target_output_size=MAX_LENGTH,
         conv_type="gn",
         res="fixed",
         depth=1,
