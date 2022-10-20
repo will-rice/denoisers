@@ -171,14 +171,15 @@ class WaveUNet(pl.LightningModule):
         """Train step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits.masked_fill(masks, 0.0)
+        logits = logits.masked_fill(masks, 0.0)
+        targets = batch.audio.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
+            loss = F.l1_loss(logits, targets)
+            snr = self.snr(logits, targets)
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            loss = F.l1_loss(logits, batch.noisy_audio - targets)
+            snr = self.snr(batch.noisy_audio - logits, targets)
 
         self.log_dict(
             {"train_loss": loss, "train_snr": snr}, batch_size=batch.audio.size(1)
@@ -192,15 +193,16 @@ class WaveUNet(pl.LightningModule):
         """Val step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits.masked_fill(masks, 0.0)
+        logits = logits.masked_fill(masks, 0.0)
+        targets = batch.audio.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
+            loss = F.l1_loss(logits, targets)
+            snr = self.snr(logits, targets)
             pred = logits
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            loss = F.l1_loss(logits, batch.noisy_audio - targets)
+            snr = self.snr(batch.noisy_audio - logits, targets)
             pred = batch.noisy_audio - logits
 
         self.log_dict(
@@ -247,15 +249,16 @@ class WaveUNet(pl.LightningModule):
         """Test step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits.masked_fill(masks, 0.0)
+        logits = logits.masked_fill(masks, 0.0)
+        targets = batch.audio.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
+            loss = F.l1_loss(logits, targets)
+            snr = self.snr(logits, targets)
             pred = logits
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            loss = F.l1_loss(logits, batch.noisy_audio - targets)
+            snr = self.snr(batch.noisy_audio - logits, targets)
             pred = batch.noisy_audio - logits
 
         self.log_dict(
