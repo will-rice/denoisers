@@ -7,7 +7,7 @@ import torch
 from pytorch_lightning import loggers
 
 from src.denoiser.data import LibriTTSDataModule
-from src.denoiser.modeling.waveunet.model import WaveUNet
+from src.denoiser.modeling.waveunet.old_model import WaveUNet
 
 
 def main() -> None:
@@ -23,7 +23,7 @@ def main() -> None:
     )
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--dataset", default="libritts", type=str)
-    parser.add_argument("--seed", default=21, type=int)
+    parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--debug", default=False, type=bool)
     parser.add_argument("--log_path", default="logs", type=Path)
 
@@ -59,11 +59,7 @@ def main() -> None:
         devices=args.num_devices,
         logger=logger,
         precision=16 if torch.cuda.is_available() else 32,
-        callbacks=[
-            checkpoint_callback,
-            swa_callback,
-            early_stopping,
-        ],
+        callbacks=[checkpoint_callback, swa_callback, early_stopping],
         track_grad_norm=True,
     )
     logger.watch(model)

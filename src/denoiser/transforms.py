@@ -1,10 +1,12 @@
 """Transforms"""
 import random
+from pathlib import Path
 from typing import Tuple
 
 import numpy as np
 import torch
 import torchaudio
+import torchaudio.transforms as T
 from pedalboard import Reverb
 from torch import Tensor, nn
 
@@ -141,7 +143,7 @@ class BreakTransform(nn.Module):
         return x
 
 
-class ReverbTransform(nn.Module):
+class ReverbFromSoundboard(nn.Module):
     def __init__(self, sample_rate=24000, probability=0.5):
         super().__init__()
         self.sample_rate = sample_rate
@@ -236,13 +238,40 @@ class VolTransform(nn.Module):
         return x
 
 
+class ReverbFromFile(nn.Module):
+    """Add reverb to a sample from a rir file"""
+
+    def __init__(self, root: Path, probability=0.5, sample_rate=24000):
+        super().__init__()
+        self.root = root
+        self.probability = probability
+        self.sample_rate = sample_rate
+        self.responses = list(root.glob("**/*.flac"))
+
+    def forward(self, x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
+
+        if random.random() < self.probability:
+            rir_raw, sample_rate = torchaudio.load(random.choice(self.responses))
+            rir_raw = rir_raw[random.randint(0, rir_raw.shape[0])][None]
+            rir_raw = T.Resample(sample_rate, self.sample_rate)(rir_raw)
+            rir = rir_raw
+            rir = rir / torch.norm(rir, p=2)
+            RIR = torch.flip(rir, [1])
+            x = torch.nn.functional.pad(x, (RIR.shape[1] - 1, 0))
+            x = nn.functional.conv1d(x[None, ...], RIR[None, ...])[0]
+
+        return x
+
+
 class RandomTransform(nn.Module):
     """Randomly apply list of transforms."""
 
     def __init__(
         self,
         transforms: Tuple[nn.Module] = (
-            ReverbTransform(probability=0.9),
+            ReverbFromFile(Path("/data-slow/BIRD/Bird"), probability=0.9),
             GaussianNoise(probability=0.9),
             VolTransform(),
             FilterTransform(),

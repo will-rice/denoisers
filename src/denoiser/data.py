@@ -1,13 +1,14 @@
 """Data modules."""
-import random
-from typing import Any, List, NamedTuple, Optional
+from pathlib import Path
+from typing import Any, NamedTuple, Optional
 
+import h5py
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from torch import Tensor, nn
+from torch import Tensor
 from torch.nn import functional as F
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 from src.denoiser.transforms import RandomTransform
 
@@ -21,6 +22,23 @@ class Sample(NamedTuple):
     specs: Tensor
     noisy_specs: Tensor
     spec_lengths: Tensor
+
+
+class HDF5Dataset(Dataset):
+    """Dataset for audio files."""
+
+    def __init__(self, root: Path):
+        super().__init__()
+        self._root = root
+
+        samples = h5py.File(root, "r")
+        samples = list(samples.values())
+
+    def __getitem__(self, item):
+        pass
+
+    def __len__(self):
+        pass
 
 
 class LibriTTSDataModule(pl.LightningDataModule):
