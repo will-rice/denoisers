@@ -274,7 +274,8 @@ class RandomTransform(nn.Module):
     def __init__(
         self,
         transforms: Tuple[nn.Module] = (
-            ReverbFromFile(Path("/data-slow/BIRD/Bird"), probability=0.9),
+            # ReverbFromFile(Path("/data-slow/BIRD/Bird"), probability=0.9),
+            ReverbFromSoundboard(),
             GaussianNoise(probability=0.9),
             VolTransform(),
             FilterTransform(),
