@@ -248,9 +248,7 @@ class ReverbFromFile(nn.Module):
         self.root = root
         self.probability = probability
         self.sample_rate = sample_rate
-        self.responses = random.choices(
-            list(root.glob("**/*.flac")), population=num_samples
-        )
+        self.responses = random.choices(list(root.glob("**/*.flac")), k=num_samples)
         self.responses = [torchaudio.load(r)[0] for r in self.responses]
 
     def forward(self, x):
