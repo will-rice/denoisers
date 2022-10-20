@@ -241,19 +241,24 @@ class VolTransform(nn.Module):
 class ReverbFromFile(nn.Module):
     """Add reverb to a sample from a rir file"""
 
-    def __init__(self, root: Path, probability=0.5, sample_rate=24000):
+    def __init__(
+        self, root: Path, probability=0.5, sample_rate=24000, num_samples: int = 1000
+    ):
         super().__init__()
         self.root = root
         self.probability = probability
         self.sample_rate = sample_rate
-        self.responses = list(root.glob("**/*.flac"))
+        self.responses = random.choices(
+            list(root.glob("**/*.flac")), population=num_samples
+        )
+        self.responses = [torchaudio.load(r)[0] for r in self.responses]
 
     def forward(self, x):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
         if random.random() < self.probability:
-            rir_raw, sample_rate = torchaudio.load(random.choice(self.responses))
+            rir_raw = random.choice(self.responses)
             rir_raw = rir_raw[random.randint(0, rir_raw.shape[0] - 1)][None]
             # rir_raw = T.Resample(sample_rate, self.sample_rate)(rir_raw)
             rir = rir_raw
