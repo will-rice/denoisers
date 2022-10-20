@@ -48,6 +48,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self,
         data_dir: str,
         batch_size: int = 24,
+        num_workers: int = 12,
         max_length: int = 16384 * 6,
         n_fft: int = 2048,
         win_length: int = 1024,
@@ -56,6 +57,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
         super().__init__()
         self.data_dir = data_dir
         self.batch_size = batch_size
+        self.num_workers = num_workers
         self.max_length = max_length
         self.n_fft = n_fft
         self.win_length = win_length
@@ -110,7 +112,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
             self.train_dataset,
             batch_size=self.batch_size,
             collate_fn=self.pad_collate,
-            num_workers=24,
+            num_workers=self.num_workers,
             shuffle=True,
         )
 
@@ -120,7 +122,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
             self.val_dataset,
             batch_size=self.batch_size,
             collate_fn=self.pad_collate,
-            num_workers=24,
+            num_workers=self.num_workers,
             shuffle=False,
         )
 
@@ -130,7 +132,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
             self.test_dataset,
             batch_size=self.batch_size,
             collate_fn=self.pad_collate,
-            num_workers=24,
+            num_workers=self.num_workers,
             shuffle=False,
         )
 
