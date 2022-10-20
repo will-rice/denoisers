@@ -109,7 +109,7 @@ class BreakTransform(nn.Module):
     def __init__(
         self,
         sample_rate=24000,
-        break_duration=0.001,
+        break_duration=1.0,
         break_ceil=50,
         break_floor=10,
         probability=0.5,
@@ -249,7 +249,7 @@ class ReverbFromFile(nn.Module):
         self.probability = probability
         self.sample_rate = sample_rate
         self.responses = random.choices(list(root.glob("**/*.flac")), k=num_samples)
-        self.responses = [torchaudio.load(r)[0] for r in self.responses]
+        self.responses = [torchaudio.load(r)[0].to("cuda") for r in self.responses]
 
     def forward(self, x):
         if isinstance(x, np.ndarray):
