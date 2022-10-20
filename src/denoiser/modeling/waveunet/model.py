@@ -32,7 +32,7 @@ class WaveUNet(pl.LightningModule):
         num_channels=(32, 64, 96, 128, 160, 192, 224, 256),
         num_outputs=1,
         kernel_size=5,
-        target_output_size=16384,
+        target_output_size=16384 * 6,
         conv_type="gn",
         res="fixed",
         depth=1,
