@@ -207,13 +207,15 @@ class WaveUNet(pl.LightningModule):
             {"val_loss": loss, "val_snr": snr}, batch_size=batch.audio.size(1)
         )
 
-        audio = [a[:l] for a, l in zip(batch.audio, batch.audio_lengths)]
-        noisy_audio = [n[:l] for n, l in zip(batch.noisy_audio, batch.audio_lengths)]
-        pred = [p[:l] for p, l in zip(pred, batch.audio_lengths)]
+        audio_trimmed = [a[:l] for a, l in zip(batch.audio, batch.audio_lengths)]
+        noisy_audio_trimmed = [
+            n[:l] for n, l in zip(batch.noisy_audio, batch.audio_lengths)
+        ]
+        pred_trimmed = [p[:l] for p, l in zip(pred, batch.audio_lengths)]
 
         return {
             "loss": loss,
-            "outputs": (audio, noisy_audio, pred),
+            "outputs": (audio_trimmed, noisy_audio_trimmed, pred_trimmed),
         }
 
     def validation_epoch_end(
