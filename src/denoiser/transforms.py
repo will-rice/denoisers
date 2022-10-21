@@ -284,7 +284,7 @@ class ReverbFromFile(nn.Module):
         return x
 
 
-class TimeNoiseMask(nn.Module):
+class FreqNoiseMask(nn.Module):
     def __init__(self, size, p):
         super().__init__()
         self.size = size
@@ -304,11 +304,13 @@ class TimeNoiseMask(nn.Module):
         phase_stft = torch.complex(mag_stft, zero) * torch.exp(
             torch.complex(zero, phase)
         )
-        inv_audio = torch.istft(phase_stft, n_fft=2048, win_length=1024, hop_length=256)
+        inv_audio = torch.istft(
+            phase_stft, n_fft=2048, win_length=1024, hop_length=256, length=x.size(-1)
+        )
         return inv_audio.squeeze()
 
 
-class FreqNoiseMask(nn.Module):
+class TimeNoiseMask(nn.Module):
     def __init__(self, size, p):
         super().__init__()
         self.size = size
@@ -328,7 +330,9 @@ class FreqNoiseMask(nn.Module):
         phase_stft = torch.complex(mag_stft, zero) * torch.exp(
             torch.complex(zero, phase)
         )
-        inv_audio = torch.istft(phase_stft, n_fft=2048, win_length=1024, hop_length=256)
+        inv_audio = torch.istft(
+            phase_stft, n_fft=2048, win_length=1024, hop_length=256, length=x.size(-1)
+        )
         return inv_audio.squeeze()
 
 

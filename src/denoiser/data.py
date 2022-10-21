@@ -180,9 +180,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
             if audio_length < self.max_length:
                 pad_length = self.max_length - audio_length
                 padded = F.pad(sample, (0, pad_length))
-
-                noisy_pad_length = self.max_length - len(noisy)
-                noisy = F.pad(noisy, (0, noisy_pad_length))
+                noisy = F.pad(noisy, (0, pad_length))
             else:
                 padded = sample[: self.max_length]
                 noisy = noisy[: self.max_length]
