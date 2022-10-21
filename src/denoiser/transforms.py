@@ -293,7 +293,7 @@ class TimeNoiseMask(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
 
         stft = torch.stft(
-            x, n_fft=2048, win_length=1024, hop_length=256, return_complex=True
+            x[None], n_fft=2048, win_length=1024, hop_length=256, return_complex=True
         )
         mag_stft = torch.abs(stft)
         mag_stft = noise_mask_along_axis(
@@ -305,7 +305,7 @@ class TimeNoiseMask(nn.Module):
             torch.complex(zero, phase)
         )
         inv_audio = torch.istft(phase_stft, n_fft=2048, win_length=1024, hop_length=256)
-        return inv_audio
+        return inv_audio.squeeze()
 
 
 class FreqNoiseMask(nn.Module):
@@ -317,7 +317,7 @@ class FreqNoiseMask(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
 
         stft = torch.stft(
-            x, n_fft=2048, win_length=1024, hop_length=256, return_complex=True
+            x[None], n_fft=2048, win_length=1024, hop_length=256, return_complex=True
         )
         mag_stft = torch.abs(stft)
         mag_stft = noise_mask_along_axis(
@@ -329,7 +329,7 @@ class FreqNoiseMask(nn.Module):
             torch.complex(zero, phase)
         )
         inv_audio = torch.istft(phase_stft, n_fft=2048, win_length=1024, hop_length=256)
-        return inv_audio
+        return inv_audio.squeeze()
 
 
 def _get_mask_param(mask_param: int, p: float, axis_length: int) -> int:
