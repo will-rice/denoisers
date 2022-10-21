@@ -7,7 +7,7 @@ import torch
 from pytorch_lightning import loggers
 
 from src.denoiser.data import LibriTTSDataModule
-from src.denoiser.modeling.waveunet.old_model import WaveUNet
+from src.denoiser.modeling.waveunet.model import WaveUNet
 
 
 def main() -> None:
@@ -16,7 +16,6 @@ def main() -> None:
     parser = argparse.ArgumentParser("train parser")
     parser.add_argument("name", type=str)
     parser.add_argument("data_path", type=Path)
-
     parser.add_argument("--project", default="denoiser", type=str)
     parser.add_argument(
         "--num_devices", default=1 if torch.cuda.is_available() else None

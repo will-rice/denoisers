@@ -32,7 +32,6 @@ class WaveUNet(pl.LightningModule):
         num_channels=(32, 64, 96, 128, 160, 192, 224, 256),
         num_outputs=1,
         kernel_size=5,
-        target_output_size=MAX_LENGTH,
         conv_type="gn",
         res="fixed",
         depth=1,
@@ -90,59 +89,6 @@ class WaveUNet(pl.LightningModule):
         )
 
         self.output_conv = nn.Conv1d(num_channels[0], num_outputs, 1)
-
-        self.set_output_size(target_output_size)
-
-    def set_output_size(self, target_output_size):
-        self.target_output_size = target_output_size
-
-        self.input_size, self.output_size = self.check_padding(target_output_size)
-        print(
-            "Using valid convolutions with "
-            + str(self.input_size)
-            + " inputs and "
-            + str(self.output_size)
-            + " outputs"
-        )
-
-        assert (self.input_size - self.output_size) % 2 == 0
-        self.shapes = {
-            "output_start_frame": (self.input_size - self.output_size) // 2,
-            "output_end_frame": (self.input_size - self.output_size) // 2
-            + self.output_size,
-            "output_frames": self.output_size,
-            "input_frames": self.input_size,
-        }
-
-    def check_padding(self, target_output_size):
-        # Ensure number of outputs covers a whole number of cycles so each output in the cycle is weighted equally during training
-        bottleneck = 1
-
-        while True:
-            out = self.check_padding_for_bottleneck(bottleneck, target_output_size)
-            if out is not False:
-                return out
-            bottleneck += 1
-
-    def check_padding_for_bottleneck(self, bottleneck, target_output_size):
-        module = self.waveunets[[k for k in self.waveunets.keys()][0]]
-        try:
-            curr_size = bottleneck
-            for idx, block in enumerate(module.upsampling_blocks):
-                curr_size = block.get_output_size(curr_size)
-            output_size = curr_size
-
-            # Bottleneck-Conv
-            curr_size = bottleneck
-            for block in reversed(module.bottlenecks):
-                curr_size = block.get_input_size(curr_size)
-            for idx, block in enumerate(reversed(module.downsample_blocks)):
-                curr_size = block.get_input_size(curr_size)
-
-            assert output_size >= target_output_size
-            return curr_size, output_size
-        except AssertionError as e:
-            return False
 
     def forward(self, inputs: Tensor) -> Tensor:
         """Forward pass."""
