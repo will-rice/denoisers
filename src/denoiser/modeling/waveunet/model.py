@@ -1,5 +1,6 @@
-"""Wave UNet Model."""
-from typing import Any, Dict, List, NamedTuple, Union
+"""Wave UNet Model"""
+from dataclasses import dataclass
+from typing import Any, Dict, List, Union
 
 import librosa as lr
 import pytorch_lightning as pl
@@ -10,12 +11,12 @@ from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
 from src.denoiser import utils
-from src.denoiser.data import MAX_LENGTH, Sample
-from src.denoiser.modeling.waveunet.layers import ConvLayer, Resample1d, centre_crop
+from src.denoiser.data import Sample
 from src.denoiser.utils import log_audio_batch, plot_image_batch
 
 
-class WaveUNetOutputs(NamedTuple):
+@dataclass
+class WaveUNetOutputs:
     """WaveUNet outputs."""
 
     audio: Tensor
@@ -23,93 +24,151 @@ class WaveUNetOutputs(NamedTuple):
     logits: Tensor
 
 
+class DownSamplingLayer(nn.Module):
+    def __init__(
+        self,
+        channel_in: int,
+        channel_out: int,
+        dilation: int = 1,
+        kernel_size: int = 15,
+        stride: int = 1,
+        padding: int = 7,
+    ):
+        super().__init__()
+        self.main = nn.Sequential(
+            nn.Conv1d(
+                channel_in,
+                channel_out,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                dilation=dilation,
+            ),
+            nn.BatchNorm1d(channel_out),
+            nn.LeakyReLU(negative_slope=0.2),
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.main(x)
+        return x
+
+
+class UpSamplingLayer(nn.Module):
+    def __init__(
+        self,
+        channel_in: int,
+        channel_out: int,
+        kernel_size: int = 5,
+        stride: int = 1,
+        padding: int = 2,
+    ):
+        super(UpSamplingLayer, self).__init__()
+        self.main = nn.Sequential(
+            nn.Conv1d(
+                channel_in,
+                channel_out,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+            ),
+            nn.BatchNorm1d(channel_out),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        x = self.main(x)
+        return x
+
+
 class WaveUNet(pl.LightningModule):
     """WaveUNet Model."""
 
     def __init__(
-        self,
-        num_inputs=1,
-        num_channels=(32, 64, 96, 128, 160, 192, 224, 256),
-        num_outputs=1,
-        kernel_size=5,
-        conv_type="gn",
-        res="fixed",
-        depth=1,
-        strides=2,
-        autoencoder=True,
+        self, n_layers: int = 12, channels_interval: int = 24, autoencoder=True
     ):
         super().__init__()
+        self.save_hyperparameters()
 
-        self.num_levels = len(num_channels)
-        self.strides = strides
-        self.kernel_size = kernel_size
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
-        self.depth = depth
+        self.n_layers = n_layers
+        self.channels_interval = channels_interval
         self.autoencoder = autoencoder
-        # Only odd filter kernels allowed
-        assert kernel_size % 2 == 1
 
-        self.snr = SignalNoiseRatio()
+        encoder_in_channels_list = [1] + [
+            i * self.channels_interval for i in range(1, self.n_layers)
+        ]
+        encoder_out_channels_list = [
+            i * self.channels_interval for i in range(1, self.n_layers + 1)
+        ]
 
-        self.downsample_blocks = nn.ModuleList()
-        self.upsample_blocks = nn.ModuleList()
-
-        for i in range(self.num_levels - 1):
-            in_ch = num_inputs if i == 0 else num_channels[i]
-            self.downsample_blocks.append(
-                DownsamplingBlock(
-                    in_ch,
-                    num_channels[i],
-                    num_channels[i + 1],
-                    kernel_size,
-                    strides,
-                    depth,
-                    conv_type,
-                    res,
+        # 1=>2=>3=>4=>5=>6=>7=>8=>9=>10=>11=>12
+        # 16384=>8192=>4096=>2048=>1024=>512=>256=>128=>64=>32=>16=>8=>4
+        self.encoder = nn.ModuleList()
+        for i in range(self.n_layers):
+            self.encoder.append(
+                DownSamplingLayer(
+                    channel_in=encoder_in_channels_list[i],
+                    channel_out=encoder_out_channels_list[i],
                 )
             )
 
-        for i in range(0, self.num_levels - 1):
-            self.upsample_blocks.append(
-                UpsamplingBlock(
-                    num_channels[-1 - i],
-                    num_channels[-2 - i],
-                    num_channels[-2 - i],
-                    kernel_size,
-                    strides,
-                    depth,
-                    conv_type,
-                    res,
-                )
-            )
-
-        self.bottleneck = ConvLayer(
-            num_channels[-1], num_channels[-1], kernel_size, 1, conv_type
+        self.middle = nn.Sequential(
+            nn.Conv1d(
+                self.n_layers * self.channels_interval,
+                self.n_layers * self.channels_interval,
+                15,
+                stride=1,
+                padding=7,
+            ),
+            nn.BatchNorm1d(self.n_layers * self.channels_interval),
+            nn.LeakyReLU(negative_slope=0.2, inplace=True),
         )
 
-        self.output_conv = nn.Conv1d(num_channels[0], num_outputs, 1)
+        decoder_in_channels_list = [
+            (2 * i + 1) * self.channels_interval for i in range(1, self.n_layers)
+        ] + [2 * self.n_layers * self.channels_interval]
+        decoder_in_channels_list = decoder_in_channels_list[::-1]
+        decoder_out_channels_list = encoder_out_channels_list[::-1]
+        self.decoder = nn.ModuleList()
+        for i in range(self.n_layers):
+            self.decoder.append(
+                UpSamplingLayer(
+                    channel_in=decoder_in_channels_list[i],
+                    channel_out=decoder_out_channels_list[i],
+                )
+            )
+
+        self.out = nn.Sequential(
+            nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
+        )
+        self.snr = SignalNoiseRatio()
 
     def forward(self, inputs: Tensor) -> Tensor:
-        """Forward pass."""
-        shortcuts = []
-        out = inputs
+        o = inputs
 
-        for block in self.downsample_blocks:
-            out, short = block(out)
-            shortcuts.append(short)
+        skip_connections = []
+        for i in range(self.n_layers):
+            o = self.encoder[i](o)
+            skip_connections.append(o)
+            # [batch_size, T // 2, channels]
+            o = o[:, :, ::2]
 
-        out = self.bottleneck(out)
+        o = self.middle(o)
 
-        for idx, block in enumerate(self.upsampling_blocks):
-            out = block(out, shortcuts[-1 - idx])
+        # Down Sampling
+        for i in range(self.n_layers):
+            # [batch_size, T * 2, channels]
+            o = F.interpolate(o, scale_factor=2, mode="linear", align_corners=True)
+            # Skip Connection
+            o = torch.cat([o, skip_connections[self.n_layers - i - 1]], dim=1)
+            o = self.decoder[i](o)
 
-        out = self.output_conv(out)
+        o = torch.cat([o, inputs], dim=1)
+        o = self.out(o)
 
         if not self.training:
-            out = out.clamp(min=-1.0, max=1.0)
+            o = o.clamp(-1.0, 1.0)
 
-        return out.to(torch.float32)
+        return o.to(torch.float32)
 
     def training_step(
         self, batch: Sample, batch_idx: Any
@@ -117,15 +176,14 @@ class WaveUNet(pl.LightningModule):
         """Train step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits = logits.masked_fill(masks, 0.0)
-        targets = batch.audio.masked_fill(masks, 0.0)
+        logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, targets)
-            snr = self.snr(logits, targets)
+            loss = F.l1_loss(logits, batch.audio)
+            snr = self.snr(logits, batch.audio)
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - targets)
-            snr = self.snr(batch.noisy_audio - logits, targets)
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log_dict(
             {"train_loss": loss, "train_snr": snr}, batch_size=batch.audio.size(1)
@@ -139,31 +197,24 @@ class WaveUNet(pl.LightningModule):
         """Val step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits = logits.masked_fill(masks, 0.0)
-        targets = batch.audio.masked_fill(masks, 0.0)
+        logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, targets)
-            snr = self.snr(logits, targets)
+            loss = F.l1_loss(logits, batch.audio)
+            snr = self.snr(logits, batch.audio)
             pred = logits
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - targets)
-            snr = self.snr(batch.noisy_audio - logits, targets)
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = self.snr(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
         self.log_dict(
             {"val_loss": loss, "val_snr": snr}, batch_size=batch.audio.size(1)
         )
 
-        audio_trimmed = [a[:l] for a, l in zip(batch.audio, batch.audio_lengths)]
-        noisy_audio_trimmed = [
-            n[:l] for n, l in zip(batch.noisy_audio, batch.audio_lengths)
-        ]
-        pred_trimmed = [p[:l] for p, l in zip(pred, batch.audio_lengths)]
-
         return {
             "loss": loss,
-            "outputs": (audio_trimmed, noisy_audio_trimmed, pred_trimmed),
+            "outputs": (batch.audio, batch.noisy_audio, pred),
         }
 
     def validation_epoch_end(
@@ -195,16 +246,15 @@ class WaveUNet(pl.LightningModule):
         """Test step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits = logits.masked_fill(masks, 0.0)
-        targets = batch.audio.masked_fill(masks, 0.0)
+        logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, targets)
-            snr = self.snr(logits, targets)
+            loss = F.l1_loss(logits, batch.audio)
+            snr = self.snr(logits, batch.audio)
             pred = logits
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - targets)
-            snr = self.snr(batch.noisy_audio - logits, targets)
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = self.snr(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
         self.log_dict(
@@ -219,146 +269,3 @@ class WaveUNet(pl.LightningModule):
     def configure_optimizers(self) -> torch.optim.Optimizer:
         """Set optimizer."""
         return torch.optim.AdamW(self.parameters(), lr=1e-4)
-
-
-class UpsamplingBlock(nn.Module):
-    def __init__(
-        self,
-        n_inputs,
-        n_shortcut,
-        n_outputs,
-        kernel_size,
-        stride,
-        depth,
-        conv_type,
-        res,
-    ):
-        super(UpsamplingBlock, self).__init__()
-        assert stride > 1
-
-        # CONV 1 for UPSAMPLING
-        if res == "fixed":
-            self.upconv = Resample1d(n_inputs, 15, stride, transpose=True)
-        else:
-            self.upconv = ConvLayer(
-                n_inputs, n_inputs, kernel_size, stride, conv_type, transpose=True
-            )
-
-        self.pre_shortcut_convs = nn.ModuleList(
-            [ConvLayer(n_inputs, n_outputs, kernel_size, 1, conv_type)]
-            + [
-                ConvLayer(n_outputs, n_outputs, kernel_size, 1, conv_type)
-                for _ in range(depth - 1)
-            ]
-        )
-
-        # CONVS to combine high- with low-level information (from shortcut)
-        self.post_shortcut_convs = nn.ModuleList(
-            [ConvLayer(n_outputs + n_shortcut, n_outputs, kernel_size, 1, conv_type)]
-            + [
-                ConvLayer(n_outputs, n_outputs, kernel_size, 1, conv_type)
-                for _ in range(depth - 1)
-            ]
-        )
-
-    def forward(self, x, shortcut):
-        # UPSAMPLE HIGH-LEVEL FEATURES
-        upsampled = self.upconv(x)
-
-        for conv in self.pre_shortcut_convs:
-            upsampled = conv(upsampled)
-
-        # Prepare shortcut connection
-        combined = centre_crop(shortcut, upsampled)
-
-        # Combine high- and low-level features
-        for conv in self.post_shortcut_convs:
-            combined = conv(
-                torch.cat([combined, centre_crop(upsampled, combined)], dim=1)
-            )
-        return combined
-
-    def get_output_size(self, input_size):
-        curr_size = self.upconv.get_output_size(input_size)
-
-        # Upsampling convs
-        for conv in self.pre_shortcut_convs:
-            curr_size = conv.get_output_size(curr_size)
-
-        # Combine convolutions
-        for conv in self.post_shortcut_convs:
-            curr_size = conv.get_output_size(curr_size)
-
-        return curr_size
-
-
-class DownsamplingBlock(nn.Module):
-    def __init__(
-        self,
-        n_inputs,
-        n_shortcut,
-        n_outputs,
-        kernel_size,
-        stride,
-        depth,
-        conv_type,
-        res,
-    ):
-        super(DownsamplingBlock, self).__init__()
-        assert stride > 1
-
-        self.kernel_size = kernel_size
-        self.stride = stride
-
-        # CONV 1
-        self.pre_shortcut_convs = nn.ModuleList(
-            [ConvLayer(n_inputs, n_shortcut, kernel_size, 1, conv_type)]
-            + [
-                ConvLayer(n_shortcut, n_shortcut, kernel_size, 1, conv_type)
-                for _ in range(depth - 1)
-            ]
-        )
-
-        self.post_shortcut_convs = nn.ModuleList(
-            [ConvLayer(n_shortcut, n_outputs, kernel_size, 1, conv_type)]
-            + [
-                ConvLayer(n_outputs, n_outputs, kernel_size, 1, conv_type)
-                for _ in range(depth - 1)
-            ]
-        )
-
-        # CONV 2 with decimation
-        if res == "fixed":
-            self.downconv = Resample1d(
-                n_outputs, 15, stride
-            )  # Resampling with fixed-size sinc lowpass filter
-        else:
-            self.downconv = ConvLayer(
-                n_outputs, n_outputs, kernel_size, stride, conv_type
-            )
-
-    def forward(self, x):
-        # PREPARING SHORTCUT FEATURES
-        shortcut = x
-        for conv in self.pre_shortcut_convs:
-            shortcut = conv(shortcut)
-
-        # PREPARING FOR DOWNSAMPLING
-        out = shortcut
-        for conv in self.post_shortcut_convs:
-            out = conv(out)
-
-        # DOWNSAMPLING
-        out = self.downconv(out)
-
-        return out, shortcut
-
-    def get_input_size(self, output_size):
-        curr_size = self.downconv.get_input_size(output_size)
-
-        for conv in reversed(self.post_shortcut_convs):
-            curr_size = conv.get_input_size(curr_size)
-
-        for conv in reversed(self.pre_shortcut_convs):
-            curr_size = conv.get_input_size(curr_size)
-        return curr_size
