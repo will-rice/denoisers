@@ -18,9 +18,9 @@ def plot_image_batch(
     pred: torch.Tensor,
     name: str,
 ) -> None:
-    np_clean = clean.squeeze(1).cpu().detach().numpy()[:5]
-    np_noisy = noisy.squeeze(1).cpu().detach().numpy()[:5]
-    np_pred = pred.squeeze(1).cpu().detach().numpy()[:5]
+    np_clean = [c.squeeze(1).cpu().detach().numpy() for c in clean][:5]
+    np_noisy = [n.squeeze(1).cpu().detach().numpy() for n in noisy][:5]
+    np_pred = [p.squeeze(1).cpu().detach().numpy() for p in pred][:5]
 
     fig, ax = plt.subplots(len(np_clean), 3, figsize=(20, 5 * len(np_clean)))
     for i, (c, n, p) in enumerate(zip(np_clean, np_noisy, np_pred)):
