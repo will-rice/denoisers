@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader, Dataset
 
 from src.denoiser import transforms
 
-MAX_LENGTH = 16384 * 15
+MAX_LENGTH = 16384 * 10
 
 
 class Sample(NamedTuple):
