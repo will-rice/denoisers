@@ -31,21 +31,19 @@ class RandomTransform(nn.Module):
 class GaussianNoise(nn.Module):
     """Gaussian Noise Transform."""
 
-    def __init__(
-        self, min_intensity: float = 0.0, max_intensity: float = 1.0, probability=0.5
-    ):
+    def __init__(self, min_intensity: float = 0.0, max_intensity: float = 1.0, p=0.5):
         super().__init__()
         self.intensity_dist = torch.distributions.uniform.Uniform(
             min_intensity, max_intensity
         )
-        self.probability = probability
+        self.p = p
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.probability:
+        if random.random() < self.p:
 
             intensity = self.intensity_dist.sample()
             noise = torch.randn_like(x) * intensity
@@ -63,7 +61,7 @@ class FilterTransform(nn.Module):
         gain_ceil=20,
         gain_floor=-20,
         q=0.707,
-        probability=0.5,
+        p=0.5,
     ):
         super().__init__()
         self.sample_rate = sample_rate
@@ -72,7 +70,7 @@ class FilterTransform(nn.Module):
         self.gain_ceil = gain_ceil
         self.gain_floor = gain_floor
         self.q = q
-        self.probability = probability
+        self.p = p
 
     def get_gain(self):
         return (self.gain_floor - self.gain_ceil) * random.random() + self.gain_ceil
@@ -84,7 +82,7 @@ class FilterTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.probability:
+        if random.random() < self.p:
 
             gain = self.get_gain()
             center_freq = self.get_center_freq()
@@ -101,11 +99,11 @@ class FilterTransform(nn.Module):
 
 
 class ClipTransform(nn.Module):
-    def __init__(self, clip_ceil=1, clip_floor=0.5, probability=0.5):
+    def __init__(self, clip_ceil=1, clip_floor=0.5, p=0.5):
         super().__init__()
         self.clip_ceil = clip_ceil
         self.clip_floor = clip_floor
-        self.probability = probability
+        self.p = p
 
     def get_clip(self):
         return (self.clip_floor - self.clip_ceil) * random.random() + self.clip_ceil
@@ -114,7 +112,7 @@ class ClipTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.probability:
+        if random.random() < self.p:
 
             clip_level = self.get_clip()
             x[torch.abs(x) > clip_level] = clip_level
@@ -129,14 +127,14 @@ class BreakTransform(nn.Module):
         break_duration=0.05,
         break_ceil=50,
         break_floor=10,
-        probability=0.5,
+        p=0.5,
     ):
         super().__init__()
         self.sample_rate = sample_rate
         self.break_segment = sample_rate * break_duration
         self.break_ceil = break_ceil
         self.break_floor = break_floor
-        self.probability = probability
+        self.p = p
 
     def get_mask(self, x):
         break_count = (
@@ -153,7 +151,7 @@ class BreakTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.probability:
+        if random.random() < self.p:
             break_mask = self.get_mask(x)
             x = x * break_mask
 
@@ -161,18 +159,18 @@ class BreakTransform(nn.Module):
 
 
 class ReverbFromSoundboard(nn.Module):
-    def __init__(self, sample_rate=24000, probability=0.5):
+    def __init__(self, sample_rate=24000, p=0.5):
         super().__init__()
         self.sample_rate = sample_rate
         self.reverb = Reverb()
-        self.probability = probability
+        self.p = p
 
     @torch.no_grad()
     def forward(self, x):
         if isinstance(x, torch.Tensor):
             x = x.numpy()
 
-        if random.random() < self.probability:
+        if random.random() < self.p:
             self.reverb.room_size = random.random()
             x = self.reverb.process(x, self.sample_rate)
 
@@ -182,11 +180,11 @@ class ReverbFromSoundboard(nn.Module):
 
 
 class SpecTransform(nn.Module):
-    def __init__(self, probability=0.5):
+    def __init__(self, p=0.5):
         super().__init__()
         self.a_hp = torch.tensor([-1.99599, 0.99600])
         self.b_hp = torch.tensor([-2, 1])
-        self.probability = probability
+        self.p = p
 
     def _uni_rand(self):
         return torch.rand(1) - 0.5
@@ -202,7 +200,7 @@ class SpecTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.probability:
+        if random.random() < self.p:
             a1, a2, b1, b2 = self._rand_resp()
             x = torchaudio.functional.biquad(
                 x, 1, self.b_hp[0], self.b_hp[1], 1, self.a_hp[0], self.a_hp[1]
@@ -219,7 +217,7 @@ class VolTransform(nn.Module):
         segment_len=0.5,
         vol_ceil=10,
         vol_floor=-10,
-        probability=0.5,
+        p=0.5,
     ):
         super().__init__()
         self.sample_rate = sample_rate
@@ -227,7 +225,7 @@ class VolTransform(nn.Module):
         self.segment_samples = int(self.sample_rate * self.segment_len)
         self.vol_ceil = vol_ceil
         self.vol_floor = vol_floor
-        self.probability = probability
+        self.p = p
 
     def get_vol(self, sample_length):
         segments = sample_length / (self.segment_len * self.sample_rate)
@@ -245,7 +243,7 @@ class VolTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.probability:
+        if random.random() < self.p:
             step_db = self.get_vol(x.size(0))
             for i in range(step_db.size(0)):
                 start = i * self.segment_samples
@@ -258,12 +256,10 @@ class VolTransform(nn.Module):
 class ReverbFromFile(nn.Module):
     """Add reverb to a sample from a rir file"""
 
-    def __init__(
-        self, root: Path, probability=0.5, sample_rate=24000, num_samples: int = 1000
-    ):
+    def __init__(self, root: Path, p=0.5, sample_rate=24000, num_samples: int = 1000):
         super().__init__()
         self.root = root
-        self.probability = probability
+        self.p = p
         self.sample_rate = sample_rate
         self.responses = random.choices(list(root.glob("**/*.flac")), k=num_samples)
         self.responses = [torchaudio.load(r)[0] for r in self.responses]
@@ -272,7 +268,7 @@ class ReverbFromFile(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.probability:
+        if random.random() < self.p:
             rir_raw = random.choice(self.responses)
             rir_raw = rir_raw[random.randint(0, rir_raw.shape[0] - 1)][None]
             rir = rir_raw
@@ -285,7 +281,7 @@ class ReverbFromFile(nn.Module):
 
 
 class FreqNoiseMask(nn.Module):
-    def __init__(self, size, p):
+    def __init__(self, size, p=0.5):
         super().__init__()
         self.size = size
         self.p = p
@@ -293,7 +289,11 @@ class FreqNoiseMask(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
 
         stft = torch.stft(
-            x[None], n_fft=2048, win_length=1024, hop_length=256, return_complex=True
+            x[None],
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            return_complex=True,
         )
         mag_stft = torch.abs(stft)
         mag_stft = noise_mask_along_axis(
@@ -305,13 +305,17 @@ class FreqNoiseMask(nn.Module):
             torch.complex(zero, phase)
         )
         inv_audio = torch.istft(
-            phase_stft, n_fft=2048, win_length=1024, hop_length=256, length=x.size(-1)
+            phase_stft,
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            length=x.size(-1),
         )
         return inv_audio.squeeze()
 
 
 class TimeNoiseMask(nn.Module):
-    def __init__(self, size, p):
+    def __init__(self, size, p=0.5):
         super().__init__()
         self.size = size
         self.p = p
@@ -319,7 +323,11 @@ class TimeNoiseMask(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
 
         stft = torch.stft(
-            x[None], n_fft=2048, win_length=1024, hop_length=256, return_complex=True
+            x[None],
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            return_complex=True,
         )
         mag_stft = torch.abs(stft)
         mag_stft = noise_mask_along_axis(
@@ -331,7 +339,11 @@ class TimeNoiseMask(nn.Module):
             torch.complex(zero, phase)
         )
         inv_audio = torch.istft(
-            phase_stft, n_fft=2048, win_length=1024, hop_length=256, length=x.size(-1)
+            phase_stft,
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            length=x.size(-1),
         )
         return inv_audio.squeeze()
 
@@ -349,25 +361,7 @@ def noise_mask_along_axis(
     axis: int,
     p: float = 1.0,
 ) -> Tensor:
-    r"""Apply a mask along ``axis``.
-    .. devices:: CPU CUDA
-    .. properties:: Autograd TorchScript
-    Mask will be applied from indices ``[v_0, v_0 + v)``,
-    where ``v`` is sampled from ``uniform(0, max_v)`` and
-    ``v_0`` from ``uniform(0, specgrams.size(axis) - v)``, with
-    ``max_v = mask_param`` when ``p = 1.0`` and
-    ``max_v = min(mask_param, floor(specgrams.size(axis) * p))``
-    otherwise.
-    All examples will have the same mask interval.
-    Args:
-        specgram (Tensor): Real spectrogram `(channel, freq, time)`
-        mask_param (int): Number of columns to be masked will be uniformly sampled from [0, mask_param]
-        mask_value (float): Value to assign to the masked columns
-        axis (int): Axis to apply masking on (1 -> frequency, 2 -> time)
-        p (float, optional): maximum proportion of columns that can be masked. (Default: 1.0)
-    Returns:
-        Tensor: Masked spectrogram of dimensions `(channel, freq, time)`
-    """
+    """add random noise mask on axis"""
     if axis not in [1, 2]:
         raise ValueError("Only Frequency and Time masking are supported")
 

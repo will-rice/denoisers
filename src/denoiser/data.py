@@ -67,8 +67,8 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self.hop_length = hop_length
         self.transform = transforms.RandomTransform(
             transforms=(
-                transforms.ReverbFromSoundboard(probability=0.99),
-                transforms.GaussianNoise(probability=0.9),
+                transforms.ReverbFromSoundboard(p=0.99),
+                transforms.GaussianNoise(p=0.9),
                 transforms.VolTransform(),
                 transforms.FilterTransform(),
                 transforms.ClipTransform(),
@@ -167,15 +167,9 @@ class LibriTTSDataModule(pl.LightningDataModule):
             sample = torch.clamp(sample, -1.0, 1.0)
             audio_length = sample.size(0)
 
-            # random_idx = torch.randint(
-            #    high=padded.size(0) - self.max_length + 1, size=()
-            # )
-            # padded = padded[random_idx : random_idx + self.max_length]
-
             noisy = torch.clone(sample)
             noisy = self.transform(noisy)
             noisy = torch.FloatTensor(noisy)
-            # noisy = torch.clamp(noisy, -1.0, 1.0)
 
             if audio_length < self.max_length:
                 pad_length = self.max_length - audio_length

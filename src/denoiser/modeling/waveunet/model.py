@@ -143,32 +143,31 @@ class WaveUNet(pl.LightningModule):
         self.snr = SignalNoiseRatio()
 
     def forward(self, inputs: Tensor) -> Tensor:
-        o = inputs
+        out = inputs
 
         skip_connections = []
         for i in range(self.n_layers):
-            o = self.encoder[i](o)
-            skip_connections.append(o)
-            # [batch_size, T // 2, channels]
-            o = o[:, :, ::2]
+            out = self.encoder[i](out)
+            skip_connections.append(out)
+            out = out[:, :, ::2]
 
-        o = self.middle(o)
+        out = self.middle(out)
 
         # Down Sampling
         for i in range(self.n_layers):
             # [batch_size, T * 2, channels]
-            o = F.interpolate(o, scale_factor=2, mode="linear", align_corners=True)
+            out = F.interpolate(out, scale_factor=2, mode="linear", align_corners=True)
             # Skip Connection
-            o = torch.cat([o, skip_connections[self.n_layers - i - 1]], dim=1)
-            o = self.decoder[i](o)
+            out = torch.cat([out, skip_connections[self.n_layers - i - 1]], dim=1)
+            out = self.decoder[i](out)
 
-        o = torch.cat([o, inputs], dim=1)
-        o = self.out(o)
+        out = torch.cat([out, inputs], dim=1)
+        out = self.out(out)
 
         if not self.training:
-            o = o.clamp(-1.0, 1.0)
+            out = out.clamp(-1.0, 1.0)
 
-        return o.to(torch.float32)
+        return out.to(torch.float32)
 
     def training_step(
         self, batch: Sample, batch_idx: Any
@@ -212,9 +211,13 @@ class WaveUNet(pl.LightningModule):
             {"val_loss": loss, "val_snr": snr}, batch_size=batch.audio.size(1)
         )
 
+        audio = [a[:l] for a, l in zip(batch.audio, batch.audio_lengths)]
+        noisy = [a[:l] for a, l in zip(batch.noisy_audio, batch.audio_lengths)]
+        preds = [a[:l] for a, l in zip(pred, batch.audio_lengths)]
+
         return {
             "loss": loss,
-            "outputs": (batch.audio, batch.noisy_audio, pred),
+            "outputs": (audio, noisy, preds),
         }
 
     def validation_epoch_end(
