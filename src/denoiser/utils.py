@@ -1,7 +1,18 @@
+import librosa
 import matplotlib.pyplot as plt
 import torch
+import torchaudio.transforms as T
 
 import wandb
+
+SPEC_FN = T.Spectrogram(
+    n_fft=2048,
+    win_length=1024,
+    hop_length=256,
+    center=True,
+    pad_mode="constant",
+    power=2.0,
+)
 
 
 def sequence_mask(length, max_length=None):
@@ -15,15 +26,15 @@ def sequence_mask(length, max_length=None):
 def plot_image_batch(
     clean: torch.Tensor,
     noisy: torch.Tensor,
-    pred: torch.Tensor,
+    preds: torch.Tensor,
     name: str,
 ) -> None:
-    np_clean = [c.squeeze(1).cpu().detach().numpy() for c in clean][:5]
-    np_noisy = [n.squeeze(1).cpu().detach().numpy() for n in noisy][:5]
-    np_pred = [p.squeeze(1).cpu().detach().numpy() for p in pred][:5]
+    np_clean = clean.squeeze(1).cpu().detach().numpy()[:5]
+    np_noisy = noisy.squeeze(1).cpu().detach().numpy()[:5]
+    np_preds = preds.squeeze(1).cpu().detach().numpy()[:5]
 
     fig, ax = plt.subplots(len(np_clean), 3, figsize=(20, 5 * len(np_clean)))
-    for i, (c, n, p) in enumerate(zip(np_clean, np_noisy, np_pred)):
+    for i, (c, n, p) in enumerate(zip(np_clean, np_noisy, np_preds)):
         ax[i][0].imshow(c, origin="lower", aspect="auto")
         ax[i][0].axis("off")
         ax[i][0].title.set_text("clean")
@@ -41,19 +52,57 @@ def plot_image_batch(
     plt.close()
 
 
+def plot_image_from_audio(
+    clean: torch.Tensor,
+    noisy: torch.Tensor,
+    preds: torch.Tensor,
+    lengths: torch.Tensor,
+    name: str,
+):
+    clean = clean.squeeze(1).cpu().detach()[:5]
+    noisy = noisy.squeeze(1).cpu().detach()[:5]
+    preds = preds.squeeze(1).cpu().detach()[:5]
+
+    fig, ax = plt.subplots(len(clean), 3, figsize=(20, 5 * len(clean)))
+
+    for i, (c, n, p, l) in enumerate(zip(clean, noisy, preds, lengths)):
+
+        original_spec = librosa.power_to_db(SPEC_FN(c[:l]))
+        noisy_spec = librosa.power_to_db(SPEC_FN(n[:l]))
+        pred_spec = librosa.power_to_db(SPEC_FN(p[:l]))
+
+        ax[i][0].imshow(original_spec, origin="lower", aspect="auto")
+        ax[i][0].axis("off")
+        ax[i][0].title.set_text("clean")
+
+        ax[i][1].imshow(noisy_spec, origin="lower", aspect="auto")
+        ax[i][1].axis("off")
+        ax[i][1].title.set_text("noisy")
+
+        ax[i][2].imshow(pred_spec, origin="lower", aspect="auto")
+        ax[i][2].axis("off")
+        ax[i][2].title.set_text("preds")
+
+    wandb.log({f"{name}_images": wandb.Image(fig)})
+
+
 def log_audio_batch(
-    clean: torch.Tensor, noisy: torch.Tensor, pred: torch.Tensor, name: str
+    clean: torch.Tensor,
+    noisy: torch.Tensor,
+    preds: torch.Tensor,
+    lengths: torch.Tensor,
+    name: str,
 ) -> None:
-    np_clean = clean.squeeze(1).cpu().detach().numpy()[0]
-    np_noisy = noisy.squeeze(1).cpu().detach().numpy()[0]
-    np_pred = pred.squeeze(1).cpu().detach().numpy()[0]
+    np_clean = clean.squeeze(1).cpu().detach().numpy()[0][: lengths[0]]
+    np_noisy = noisy.squeeze(1).cpu().detach().numpy()[0][: lengths[0]]
+    np_preds = preds.squeeze(1).cpu().detach().numpy()[0][: lengths[0]]
 
     wandb.log(
         {
             f"{name}_audio": {
                 f"{name}_clean": wandb.Audio(np_clean, sample_rate=24000),
                 f"{name}_noisy": wandb.Audio(np_noisy, sample_rate=24000),
-                f"{name}_pred": wandb.Audio(np_pred, sample_rate=24000),
+                f"{name}_pred": wandb.Audio(np_preds, sample_rate=24000),
             }
         }
     )

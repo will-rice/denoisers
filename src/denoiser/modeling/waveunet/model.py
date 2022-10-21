@@ -12,7 +12,7 @@ from torchmetrics import SignalNoiseRatio
 
 from src.denoiser import utils
 from src.denoiser.data import Sample
-from src.denoiser.utils import log_audio_batch, plot_image_batch
+from src.denoiser.utils import log_audio_batch, plot_image_batch, plot_image_from_audio
 
 
 @dataclass
@@ -211,13 +211,9 @@ class WaveUNet(pl.LightningModule):
             {"val_loss": loss, "val_snr": snr}, batch_size=batch.audio.size(1)
         )
 
-        audio = [a[:l] for a, l in zip(batch.audio, batch.audio_lengths)]
-        noisy = [a[:l] for a, l in zip(batch.noisy_audio, batch.audio_lengths)]
-        preds = [a[:l] for a, l in zip(pred, batch.audio_lengths)]
-
         return {
             "loss": loss,
-            "outputs": (audio, noisy, preds),
+            "outputs": (batch.audio, batch.noisy_audio, pred, batch.audio_lengths),
         }
 
     def validation_epoch_end(
@@ -227,23 +223,9 @@ class WaveUNet(pl.LightningModule):
             List[List[Union[Tensor, Dict[str, Any]]]],
         ],
     ) -> None:
-        audio, noisy, pred = validation_step_outputs[-1]["outputs"]
-        log_audio_batch(audio, noisy, pred, name="val")
-
-        spectrogram = T.Spectrogram(
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            center=True,
-            pad_mode="constant",
-            power=2.0,
-        )
-
-        original_spec = torch.from_numpy(lr.power_to_db(spectrogram(audio.to("cpu"))))
-        noisy_spec = torch.from_numpy(lr.power_to_db(spectrogram(noisy.to("cpu"))))
-        pred_spec = torch.from_numpy(lr.power_to_db(spectrogram(pred.to("cpu"))))
-
-        plot_image_batch(original_spec, noisy_spec, pred_spec, "val")
+        audio, noisy, preds, lengths = validation_step_outputs[-1]["outputs"]
+        log_audio_batch(audio, noisy, preds, lengths, name="val")
+        plot_image_from_audio(audio, noisy, preds, lengths, "val")
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
