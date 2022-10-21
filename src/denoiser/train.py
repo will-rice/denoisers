@@ -7,7 +7,7 @@ import torch
 from pytorch_lightning import loggers
 
 from src.denoiser.data import LibriTTSDataModule
-from src.denoiser.modeling.waveunet.model import WaveUNet
+from src.denoiser.modeling.waveunet.old_model import WaveUNet
 
 
 def main() -> None:
