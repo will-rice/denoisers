@@ -1,7 +1,7 @@
 """Transforms"""
 import random
 from pathlib import Path
-from typing import Tuple
+from typing import Any, Tuple
 
 import numpy as np
 import torch
@@ -9,6 +9,23 @@ import torchaudio
 import torchaudio.transforms as T
 from pedalboard import Reverb
 from torch import Tensor, nn
+
+
+class RandomTransform(nn.Module):
+    """Randomly apply list of transforms."""
+
+    def __init__(
+        self,
+        transforms: Any,
+    ):
+        super().__init__()
+        self.transforms = nn.ModuleList(transforms)
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward Pass."""
+        for t in self.transforms:
+            x = t(x).clamp(-1.0, 1.0)
+        return x
 
 
 class GaussianNoise(nn.Module):
@@ -267,27 +284,121 @@ class ReverbFromFile(nn.Module):
         return x
 
 
-class RandomTransform(nn.Module):
-    """Randomly apply list of transforms."""
-
-    def __init__(
-        self,
-        transforms: Tuple[nn.Module] = (
-            # ReverbFromFile(Path("/data-slow/BIRD/Bird"), probability=0.9),
-            ReverbFromSoundboard(probability=0.99),
-            GaussianNoise(probability=0.9),
-            VolTransform(),
-            FilterTransform(),
-            ClipTransform(),
-            BreakTransform(),
-            SpecTransform(),
-        ),
-    ):
+class TimeNoiseMask(nn.Module):
+    def __init__(self, size, p):
         super().__init__()
-        self.transforms = nn.ModuleList(transforms)
+        self.size = size
+        self.p = p
 
     def forward(self, x: Tensor) -> Tensor:
-        """Forward Pass."""
-        for t in self.transforms:
-            x = t(x).clamp(-1.0, 1.0)
-        return x
+
+        stft = torch.stft(
+            x, n_fft=2048, win_length=1024, hop_length=256, return_complex=True
+        )
+        mag_stft = torch.abs(stft)
+        mag_stft = noise_mask_along_axis(
+            mag_stft, mask_param=self.size, axis=1, p=self.p
+        )
+        phase = torch.angle(stft)
+        zero = torch.tensor(0.0).to(mag_stft.dtype)
+        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
+            torch.complex(zero, phase)
+        )
+        inv_audio = torch.istft(phase_stft, n_fft=2048, win_length=1024, hop_length=256)
+        return inv_audio
+
+
+class FreqNoiseMask(nn.Module):
+    def __init__(self, size, p):
+        super().__init__()
+        self.size = size
+        self.p = p
+
+    def forward(self, x: Tensor) -> Tensor:
+
+        stft = torch.stft(
+            x, n_fft=2048, win_length=1024, hop_length=256, return_complex=True
+        )
+        mag_stft = torch.abs(stft)
+        mag_stft = noise_mask_along_axis(
+            mag_stft, mask_param=self.size, axis=2, p=self.p
+        )
+        phase = torch.angle(stft)
+        zero = torch.tensor(0.0).to(mag_stft.dtype)
+        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
+            torch.complex(zero, phase)
+        )
+        inv_audio = torch.istft(phase_stft, n_fft=2048, win_length=1024, hop_length=256)
+        return inv_audio
+
+
+def _get_mask_param(mask_param: int, p: float, axis_length: int) -> int:
+    if p == 1.0:
+        return mask_param
+    else:
+        return min(mask_param, int(axis_length * p))
+
+
+def noise_mask_along_axis(
+    specgram: Tensor,
+    mask_param: int,
+    axis: int,
+    p: float = 1.0,
+) -> Tensor:
+    r"""Apply a mask along ``axis``.
+    .. devices:: CPU CUDA
+    .. properties:: Autograd TorchScript
+    Mask will be applied from indices ``[v_0, v_0 + v)``,
+    where ``v`` is sampled from ``uniform(0, max_v)`` and
+    ``v_0`` from ``uniform(0, specgrams.size(axis) - v)``, with
+    ``max_v = mask_param`` when ``p = 1.0`` and
+    ``max_v = min(mask_param, floor(specgrams.size(axis) * p))``
+    otherwise.
+    All examples will have the same mask interval.
+    Args:
+        specgram (Tensor): Real spectrogram `(channel, freq, time)`
+        mask_param (int): Number of columns to be masked will be uniformly sampled from [0, mask_param]
+        mask_value (float): Value to assign to the masked columns
+        axis (int): Axis to apply masking on (1 -> frequency, 2 -> time)
+        p (float, optional): maximum proportion of columns that can be masked. (Default: 1.0)
+    Returns:
+        Tensor: Masked spectrogram of dimensions `(channel, freq, time)`
+    """
+    if axis not in [1, 2]:
+        raise ValueError("Only Frequency and Time masking are supported")
+
+    if not 0.0 <= p <= 1.0:
+        raise ValueError(f"The value of p must be between 0.0 and 1.0 ({p} given).")
+
+    mask_param = _get_mask_param(mask_param, p, specgram.shape[axis])
+    if mask_param < 1:
+        return specgram
+
+    # pack batch
+    shape = specgram.size()
+    specgram = specgram.reshape([-1] + list(shape[-2:]))
+    value = torch.rand(1) * mask_param
+    min_value = torch.rand(1) * (specgram.size(axis) - value)
+
+    mask_start = (min_value.long()).squeeze()
+    mask_end = (min_value.long() + value.long()).squeeze()
+    mask = torch.arange(
+        0, specgram.shape[axis], device=specgram.device, dtype=specgram.dtype
+    )
+    mask = (mask >= mask_start) & (mask < mask_end)
+    if axis == 1:
+        mask = mask.unsqueeze(-1)
+
+    if mask_end - mask_start >= mask_param:
+        raise ValueError(
+            "Number of columns to be masked should be less than mask_param"
+        )
+
+    noise = torch.randn_like(specgram) * mask
+
+    specgram = specgram + noise
+
+    # unpack batch
+    specgram = specgram.reshape(shape[:-2] + specgram.shape[-2:])
+
+    return specgram

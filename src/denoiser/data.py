@@ -11,7 +11,7 @@ from torch import Tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset
 
-from src.denoiser.transforms import RandomTransform
+from src.denoiser import transforms
 
 MAX_LENGTH = 16384 * 15
 
@@ -65,7 +65,19 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self.n_fft = n_fft
         self.win_length = win_length
         self.hop_length = hop_length
-        self.transform = RandomTransform()
+        self.transform = transforms.RandomTransform(
+            transforms=(
+                transforms.ReverbFromSoundboard(probability=0.99),
+                transforms.GaussianNoise(probability=0.9),
+                transforms.VolTransform(),
+                transforms.FilterTransform(),
+                transforms.ClipTransform(),
+                transforms.BreakTransform(),
+                transforms.SpecTransform(),
+                transforms.FreqNoiseMask(100, p=0.5),
+                transforms.TimeNoiseMask(100, p=0.5),
+            )
+        )
 
     def prepare_data(self) -> None:
         """Download datasets."""
