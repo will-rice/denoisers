@@ -53,8 +53,8 @@ class WaveUNet(pl.LightningModule):
 
         self.snr = SignalNoiseRatio()
 
-        self.downsampling_blocks = nn.ModuleList()
-        self.upsampling_blocks = nn.ModuleList()
+        self.downsample_blocks = nn.ModuleList()
+        self.upsample_blocks = nn.ModuleList()
 
         for i in range(self.num_levels - 1):
             in_ch = num_inputs if i == 0 else num_channels[i]
@@ -72,7 +72,7 @@ class WaveUNet(pl.LightningModule):
             )
 
         for i in range(0, self.num_levels - 1):
-            self.upsampling_blocks.append(
+            self.upsample_blocks.append(
                 UpsamplingBlock(
                     num_channels[-1 - i],
                     num_channels[-2 - i],

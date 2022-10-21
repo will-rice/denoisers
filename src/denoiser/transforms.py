@@ -249,7 +249,7 @@ class ReverbFromFile(nn.Module):
         self.probability = probability
         self.sample_rate = sample_rate
         self.responses = random.choices(list(root.glob("**/*.flac")), k=num_samples)
-        self.responses = [torchaudio.load(r)[0].to("cuda") for r in self.responses]
+        self.responses = [torchaudio.load(r)[0] for r in self.responses]
 
     def forward(self, x):
         if isinstance(x, np.ndarray):
@@ -258,7 +258,6 @@ class ReverbFromFile(nn.Module):
         if random.random() < self.probability:
             rir_raw = random.choice(self.responses)
             rir_raw = rir_raw[random.randint(0, rir_raw.shape[0] - 1)][None]
-            # rir_raw = T.Resample(sample_rate, self.sample_rate)(rir_raw)
             rir = rir_raw
             rir = rir / torch.norm(rir, p=2)
             RIR = torch.flip(rir, [1])
