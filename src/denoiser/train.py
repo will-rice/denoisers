@@ -25,6 +25,7 @@ def main() -> None:
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--debug", default=False, type=bool)
     parser.add_argument("--log_path", default="logs", type=Path)
+    parser.add_argument("--checkpoint_path", default="checkpoints", type=Path)
 
     args = parser.parse_args()
 
@@ -48,7 +49,8 @@ def main() -> None:
     )
     swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=3e-4)
 
-    last_checkpoint = log_path / "last.ckpt"
+    pretrained = args.checkpoint_path
+    last_checkpoint = pretrained if pretrained else log_path / "last.ckpt"
 
     trainer = pl.Trainer(
         default_root_dir=log_path,

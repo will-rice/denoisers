@@ -415,9 +415,10 @@ def noise_mask_along_axis(
             "Number of columns to be masked should be less than mask_param"
         )
 
-    noise = torch.randn_like(specgram) * mask
+    noise = torch.randn_like(specgram) * random.random()
+    noise *= mask
 
-    specgram = specgram + noise
+    specgram += noise
 
     # unpack batch
     specgram = specgram.reshape(shape[:-2] + specgram.shape[-2:])
