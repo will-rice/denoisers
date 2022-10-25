@@ -43,7 +43,7 @@ class DownSamplingLayer(nn.Module):
                 dilation=dilation,
             ),
             nn.BatchNorm1d(channel_out),
-            nn.SiLU(),
+            nn.LeakyReLU(0.2, inplace=True),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -70,7 +70,7 @@ class UpSamplingLayer(nn.Module):
                 padding=padding,
             ),
             nn.BatchNorm1d(channel_out),
-            nn.SiLU(),
+            nn.LeakyReLU(0.2, inplace=True),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -118,7 +118,7 @@ class WaveUNet(pl.LightningModule):
                 padding=7,
             ),
             nn.BatchNorm1d(self.n_layers * self.channels_interval),
-            nn.SiLU(),
+            nn.LeakyReLU(0.2, inplace=True),
         )
 
         decoder_in_channels_list = [

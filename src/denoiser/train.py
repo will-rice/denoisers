@@ -25,7 +25,7 @@ def main() -> None:
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--debug", default=False, type=bool)
     parser.add_argument("--log_path", default="logs", type=Path)
-    parser.add_argument("--checkpoint_path", default="checkpoints", type=Path)
+    parser.add_argument("--checkpoint_path", default=None, type=Path)
 
     args = parser.parse_args()
 
