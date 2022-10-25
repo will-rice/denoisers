@@ -253,6 +253,29 @@ class VolTransform(nn.Module):
         return x
 
 
+class NoiseFromFile(nn.Module):
+    """Add background noise from random file."""
+
+    def __init__(self, root: Path, p=0.5, sample_rate=24000, num_samples: int = 1000):
+        super().__init__()
+        self.root = root
+        self.p = p
+        self.sample_rate = sample_rate
+        self.responses = random.choices(list(root.glob("**/*.wav")), k=num_samples)
+        self.responses = [torchaudio.load(r)[0] for r in self.responses]
+
+    def forward(self, x: Tensor) -> Tensor:
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x)
+
+        if random.random() < self.p:
+            noise = random.choice(self.responses)
+
+            x += noise[: len(x)]
+
+        return x
+
+
 class ReverbFromFile(nn.Module):
     """Add reverb to a sample from a rir file"""
 

@@ -41,7 +41,6 @@ def main() -> None:
         offline=args.debug,
     )
 
-    early_stopping = pl.callbacks.EarlyStopping("val_loss", patience=20)
     checkpoint_callback = pl.callbacks.ModelCheckpoint(
         dirpath=log_path,
         filename="{epoch}-{val_loss:.4f}",
@@ -58,7 +57,7 @@ def main() -> None:
         devices=args.num_devices,
         logger=logger,
         precision=16 if torch.cuda.is_available() else 32,
-        callbacks=[checkpoint_callback, swa_callback, early_stopping],
+        callbacks=[checkpoint_callback, swa_callback],
         track_grad_norm=True,
     )
     logger.watch(model)

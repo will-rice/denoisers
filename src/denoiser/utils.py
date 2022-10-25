@@ -84,6 +84,7 @@ def plot_image_from_audio(
         ax[i][2].title.set_text("preds")
 
     wandb.log({f"{name}_images": wandb.Image(fig)})
+    plt.close()
 
 
 def log_audio_batch(

@@ -2,17 +2,15 @@
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
-import librosa as lr
 import pytorch_lightning as pl
 import torch
-import torchaudio.transforms as T
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
 from src.denoiser import utils
 from src.denoiser.data import Sample
-from src.denoiser.utils import log_audio_batch, plot_image_batch, plot_image_from_audio
+from src.denoiser.utils import log_audio_batch, plot_image_from_audio
 
 
 @dataclass
@@ -45,7 +43,7 @@ class DownSamplingLayer(nn.Module):
                 dilation=dilation,
             ),
             nn.BatchNorm1d(channel_out),
-            nn.LeakyReLU(negative_slope=0.2),
+            nn.SiLU(),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -72,7 +70,7 @@ class UpSamplingLayer(nn.Module):
                 padding=padding,
             ),
             nn.BatchNorm1d(channel_out),
-            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.SiLU(),
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -120,7 +118,7 @@ class WaveUNet(pl.LightningModule):
                 padding=7,
             ),
             nn.BatchNorm1d(self.n_layers * self.channels_interval),
-            nn.LeakyReLU(negative_slope=0.2, inplace=True),
+            nn.SiLU(),
         )
 
         decoder_in_channels_list = [
