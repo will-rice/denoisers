@@ -71,6 +71,8 @@ def main() -> None:
     )
     trainer.test(model, datamodule=datamodule)
 
+    torch.jit.save(model.to_torchscript(), log_path / "model.pt")
+
 
 if __name__ == "__main__":
     main()
