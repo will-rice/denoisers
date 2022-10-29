@@ -144,20 +144,22 @@ class WaveUNet(pl.LightningModule):
         out = inputs
 
         skip_connections = []
-        for i in range(self.n_layers):
-            out = self.encoder[i](out)
+        for layer in self.encoder:
+            out = layer(out)
             skip_connections.append(out)
             out = out[:, :, ::2]
 
         out = self.middle(out)
 
         # Down Sampling
-        for i in range(self.n_layers):
+        for i, layer in enumerate(self.decoder):
             # [batch_size, T * 2, channels]
-            out = F.interpolate(out, scale_factor=2, mode="linear", align_corners=True)
+            out = F.interpolate(
+                out, scale_factor=2.0, mode="linear", align_corners=True
+            )
             # Skip Connection
             out = torch.cat([out, skip_connections[self.n_layers - i - 1]], dim=1)
-            out = self.decoder[i](out)
+            out = layer(out)
 
         out = torch.cat([out, inputs], dim=1)
         out = self.out(out)
