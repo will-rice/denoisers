@@ -38,7 +38,7 @@ def main() -> None:
     logger = loggers.WandbLogger(
         project=args.project,
         save_dir=log_path,
-        name=args.name,
+        group=args.name,
         offline=args.debug,
     )
 
