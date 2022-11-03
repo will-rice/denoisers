@@ -415,7 +415,7 @@ class CutOut(nn.Module):
 
             mask[y1:y2, x1:x2] = 0.0
 
-        mask = mask.expand_as(x)
+        mask = mask.expand_as(mag_stft)
         mag_stft *= mask
 
         phase = torch.angle(stft)
@@ -483,7 +483,7 @@ class NoiseOut(nn.Module):
             noise = torch.randn_like(mask[y1:y2, x1:x2]) * self.intensity
             mask[y1:y2, x1:x2] = noise
 
-        mask = mask.expand_as(x)
+        mask = mask.expand_as(mag_stft)
         mag_stft *= mask
 
         phase = torch.angle(stft)
