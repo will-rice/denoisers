@@ -269,7 +269,7 @@ class NoiseFromFile(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-            noise = torchaudio.load(random.choice(self.noises))[0].squeeze()
+            noise = torchaudio.load(str(random.choice(self.noises)))[0].squeeze()
             x += noise[: len(x)]
 
         return x
