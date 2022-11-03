@@ -28,90 +28,6 @@ class Sample(NamedTuple):
     spec_lengths: Tensor
 
 
-class HDF5Dataset(Dataset):
-    """Dataset for audio files."""
-
-    def __init__(
-        self,
-        root: Path,
-        max_length: int = MAX_LENGTH,
-        n_fft: int = 2048,
-        win_length: int = 1024,
-        hop_length: int = 256,
-    ):
-        super().__init__()
-        self._root = root
-        self.max_length = max_length
-        self.n_fft = n_fft
-        self.win_length = win_length
-        self.hop_length = hop_length
-
-        samples = h5py.File(root, "r")
-        self.samples = list(samples.values())
-
-        self.transforms = transforms.RandomTransform(
-            transforms=(
-                transforms.ReverbFromSoundboard(p=0.99),
-                transforms.GaussianNoise(p=0.9),
-                transforms.VolTransform(),
-                transforms.FilterTransform(),
-                transforms.ClipTransform(),
-                transforms.BreakTransform(),
-                transforms.SpecTransform(),
-                transforms.FreqNoiseMask(100, p=0.5),
-                transforms.TimeNoiseMask(100, p=0.5),
-            )
-        )
-
-    def __getitem__(self, item):
-        sample = self.samples[item]
-        audio = sample["audio"][:]
-        audio = audio.astype(np.float32) / (2**15 - 1)
-        audio = torch.FloatTensor(audio)
-
-        audio_length = audio.size(0)
-
-        noisy = torch.clone(audio)
-        noisy = self.transforms(noisy)
-        noisy = torch.FloatTensor(noisy)
-
-        if audio_length < self.max_length:
-            pad_length = self.max_length - audio_length
-            padded = F.pad(sample, (0, pad_length))
-            noisy = F.pad(noisy, (0, pad_length))
-        else:
-            padded = sample[: self.max_length]
-            noisy = noisy[: self.max_length]
-
-        spec = self.get_spectrogram(padded)
-        noisy_spec = self.get_spectrogram(noisy)
-        spec_length = spec.size(1)
-
-        return Sample(
-            audio=audio,
-            noisy_audio=noisy,
-            audio_lengths=audio_length,
-            specs=spec,
-            noisy_specs=noisy_spec,
-            spec_lengths=spec_length,
-        )
-
-    def __len__(self):
-        return len(self.samples)
-
-    def get_spectrogram(self, inputs: Tensor) -> Tensor:
-        """Calculate magnitude spectrogram."""
-        spec = torch.stft(
-            inputs,
-            n_fft=self.n_fft,
-            win_length=self.win_length,
-            hop_length=self.hop_length,
-            return_complex=True,
-        ).abs()
-
-        return spec
-
-
 class LibriTTSDataModule(pl.LightningDataModule):
     """LibriTTS DataModule."""
 
@@ -135,8 +51,8 @@ class LibriTTSDataModule(pl.LightningDataModule):
         self.hop_length = hop_length
         self.transform = transforms.RandomTransform(
             transforms=(
-                transforms.ReverbFromSoundboard(p=0.99),
-                transforms.GaussianNoise(p=0.9),
+                transforms.ReverbFromSoundboard(p=1.0),
+                transforms.GaussianNoise(p=1.0),
                 transforms.VolTransform(),
                 transforms.FilterTransform(),
                 transforms.ClipTransform(),
@@ -144,6 +60,9 @@ class LibriTTSDataModule(pl.LightningDataModule):
                 transforms.SpecTransform(),
                 transforms.FreqNoiseMask(100, p=0.5),
                 transforms.TimeNoiseMask(100, p=0.5),
+                transforms.NoiseOut(20, 5),
+                transforms.CutOut(20, 5),
+                transforms.NoiseFromFile("/data/daps"),
             )
         )
 

@@ -1,16 +1,113 @@
 """VCTK dataset."""
 from pathlib import Path
 
+import torch
+import torch.nn.functional as F
+import torchaudio
+from torch import Tensor, nn
 from torch.utils.data import Dataset
+
+from src.denoiser.data import Sample
+from src.denoiser.transforms import (
+    BreakTransform,
+    ClipTransform,
+    CutOut,
+    FilterTransform,
+    FreqNoiseMask,
+    GaussianNoise,
+    NoiseOut,
+    ReverbFromSoundboard,
+    SpecTransform,
+    TimeNoiseMask,
+    VolTransform,
+)
 
 
 class VCTKDataset(Dataset):
-    def __init__(self, root: Path):
+    """Simple dataset."""
+
+    def __init__(
+        self,
+        root: Path,
+        max_length: int,
+        n_fft: int = 2048,
+        win_length: int = 1024,
+        hop_length: int = 256,
+        sample_rate: int = 24000,
+        transforms=None,
+    ):
         super().__init__()
         self._root = root
+        self._max_length = max_length
+        self._n_fft = n_fft
+        self._win_length = win_length
+        self._hop_length = hop_length
+        self._sample_rate = sample_rate
+
+        self._transforms = transforms or nn.Sequential(
+            ReverbFromSoundboard(p=0.99),
+            GaussianNoise(p=0.9),
+            VolTransform(),
+            FilterTransform(),
+            ClipTransform(),
+            BreakTransform(),
+            SpecTransform(),
+            FreqNoiseMask(100, p=0.5),
+            TimeNoiseMask(100, p=0.5),
+            NoiseOut(20, 5),
+            CutOut(20, 5),
+        )
+
+        self._samples = list(self._root.glob("**/*.wav"))
 
     def __len__(self):
-        pass
+        return len(self._samples)
 
     def __getitem__(self, idx):
-        pass
+        sample = self._samples[idx]
+
+        audio, sr = torchaudio.load(sample)
+
+        if sr != self._sample_rate:
+            torchaudio.transforms.Resample(sr, self._sample_rate)(audio)
+
+        audio_length = audio.size(0)
+
+        noisy = torch.clone(audio)
+        noisy = self._transforms(noisy)
+        noisy = torch.FloatTensor(noisy)
+
+        if audio_length < self._max_length:
+            pad_length = self._max_length - audio_length
+            padded = F.pad(audio, (0, pad_length))
+            noisy = F.pad(noisy, (0, pad_length))
+        else:
+            padded = sample[: self._max_length]
+            noisy = noisy[: self._max_length]
+
+        spec = self.get_spectrogram(padded)
+        noisy_spec = self.get_spectrogram(noisy)
+        spec_length = spec.size(1)
+
+        sample = self._transforms(sample)
+
+        return Sample(
+            audio=padded,
+            noisy_audio=noisy,
+            audio_lengths=audio_length,
+            specs=spec,
+            noisy_specs=noisy_spec,
+            spec_lengths=spec_length,
+        )
+
+    def get_spectrogram(self, inputs: Tensor) -> Tensor:
+        """Calculate magnitude spectrogram."""
+        spec = torch.stft(
+            inputs,
+            n_fft=self._n_fft,
+            win_length=self._win_length,
+            hop_length=self._hop_length,
+            return_complex=True,
+        ).abs()
+
+        return spec

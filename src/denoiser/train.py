@@ -61,6 +61,7 @@ def main() -> None:
         precision=16 if torch.cuda.is_available() else 32,
         callbacks=[checkpoint_callback, swa_callback],
         track_grad_norm=True,
+        gradient_clip_val=1000.0,
     )
     logger.watch(model)
 

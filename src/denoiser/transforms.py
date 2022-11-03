@@ -1,7 +1,7 @@
 """Transforms"""
 import random
 from pathlib import Path
-from typing import Any, Tuple
+from typing import Any, Optional, Tuple
 
 import numpy as np
 import torch
@@ -262,15 +262,13 @@ class NoiseFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         self.responses = random.choices(list(root.glob("**/*.wav")), k=num_samples)
-        self.responses = [torchaudio.load(r)[0] for r in self.responses]
 
     def forward(self, x: Tensor) -> Tensor:
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-            noise = random.choice(self.responses)
-
+            noise = torchaudio.load(random.choice(self.responses))[0]
             x += noise[: len(x)]
 
         return x
@@ -367,6 +365,137 @@ class TimeNoiseMask(nn.Module):
             win_length=1024,
             hop_length=256,
             length=x.size(-1),
+        )
+        return inv_audio.squeeze()
+
+
+class CutOut(nn.Module):
+    """Randomly mask out one or more patches from an image.
+    Args:
+        n_holes (int): Number of patches to cut out of each image.
+        length (int): The length (in pixels) of each square patch.
+    """
+
+    def __init__(self, n_holes, length):
+        super().__init__()
+        self.n_holes = n_holes
+        self.length = length
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): Tensor image of size (C, H, W).
+        Returns:
+            Tensor: Image with n_holes of dimension length x length cut out of it.
+        """
+        original_size = x.size(-1)
+        stft = torch.stft(
+            x[None],
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            return_complex=True,
+        )
+        mag_stft = torch.abs(stft)
+
+        h = mag_stft.size(1)
+        w = mag_stft.size(2)
+
+        mask = torch.ones((h, w), dtype=torch.float32)
+
+        for n in range(self.n_holes):
+            y = torch.randint(size=(), high=h)
+            x = torch.randint(size=(), high=w)
+
+            y1 = torch.clamp(y - self.length // 2, 0, h)
+            y2 = torch.clamp(y + self.length // 2, 0, h)
+            x1 = torch.clamp(x - self.length // 2, 0, w)
+            x2 = torch.clamp(x + self.length // 2, 0, w)
+
+            mask[y1:y2, x1:x2] = 0.0
+
+        mask = mask.expand_as(x)
+        mag_stft *= mask
+
+        phase = torch.angle(stft)
+        zero = torch.tensor(0.0).to(mag_stft.dtype)
+        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
+            torch.complex(zero, phase)
+        )
+        inv_audio = torch.istft(
+            phase_stft,
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            length=original_size,
+        )
+        return inv_audio.squeeze()
+
+
+class NoiseOut(nn.Module):
+    """Randomly mask out one or more patches from an image.
+    Args:
+        n_holes (int): Number of patches to cut out of each image.
+        length (int): The length (in pixels) of each square patch.
+        intensity (float): The intensity of the noise to be added.
+    """
+
+    def __init__(
+        self, n_holes: int, length: int, intensity: Optional[float] = random.random()
+    ):
+        super().__init__()
+        self.n_holes = n_holes
+        self.length = length
+        self.intensity = intensity
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x (Tensor): Tensor image of size (C, H, W).
+        Returns:
+            Tensor: Image with n_holes of dimension length x length cut out of it.
+        """
+        original_size = x.size(-1)
+        stft = torch.stft(
+            x[None],
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            return_complex=True,
+        )
+        mag_stft = torch.abs(stft)
+
+        h = mag_stft.size(1)
+        w = mag_stft.size(2)
+
+        mask = torch.ones((h, w), dtype=torch.float32)
+
+        for n in range(self.n_holes):
+            y = torch.randint(size=(), high=h)
+            x = torch.randint(size=(), high=w)
+
+            y1 = torch.clamp(y - self.length // 2, 0, h)
+            y2 = torch.clamp(y + self.length // 2, 0, h)
+            x1 = torch.clamp(x - self.length // 2, 0, w)
+            x2 = torch.clamp(x + self.length // 2, 0, w)
+
+            noise = torch.randn_like(mask[y1:y2, x1:x2]) * self.intensity
+            mask[y1:y2, x1:x2] = noise
+
+        mask = mask.expand_as(x)
+        mag_stft *= mask
+
+        phase = torch.angle(stft)
+        zero = torch.tensor(0.0).to(mag_stft.dtype)
+        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
+            torch.complex(zero, phase)
+        )
+        inv_audio = torch.istft(
+            phase_stft,
+            n_fft=2048,
+            win_length=1024,
+            hop_length=256,
+            length=original_size,
         )
         return inv_audio.squeeze()
 
