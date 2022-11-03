@@ -62,7 +62,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
                 transforms.TimeNoiseMask(100, p=0.5),
                 transforms.NoiseOut(20, 5),
                 transforms.CutOut(20, 5),
-                transforms.NoiseFromFile("/data/daps"),
+                transforms.NoiseFromFile(Path("/data/daps")),
             )
         )
 
