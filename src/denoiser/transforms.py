@@ -262,7 +262,7 @@ class NoiseFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         self.noises = random.choices(list(root.glob("**/*.wav")), k=num_samples)
-        self.noises = [torchaudio.load(noise)[0] for noise in self.noises]
+        self.noises = [torchaudio.load(noise)[0].squeeze() for noise in self.noises]
         print(f"Loaded {len(self.noises)} noises")
 
     def forward(self, x: Tensor) -> Tensor:
