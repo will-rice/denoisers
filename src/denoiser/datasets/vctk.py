@@ -15,6 +15,7 @@ from src.denoiser.transforms import (
     FilterTransform,
     FreqNoiseMask,
     GaussianNoise,
+    NoiseFromFile,
     NoiseOut,
     ReverbFromSoundboard,
     SpecTransform,
@@ -56,9 +57,10 @@ class VCTKDataset(Dataset):
             TimeNoiseMask(100, p=0.5),
             NoiseOut(20, 5),
             CutOut(20, 5),
+            NoiseFromFile(Path("/data/daps")),
         )
 
-        self._samples = list(self._root.glob("**/*.wav"))
+        self._samples = list(self._root.glob("**/*.flac"))
 
     def __len__(self):
         return len(self._samples)
@@ -88,8 +90,6 @@ class VCTKDataset(Dataset):
         spec = self.get_spectrogram(padded)
         noisy_spec = self.get_spectrogram(noisy)
         spec_length = spec.size(1)
-
-        sample = self._transforms(sample)
 
         return Sample(
             audio=padded,

@@ -13,6 +13,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader, Dataset
 
 from src.denoiser import transforms
+from src.denoiser.datasets.vctk import VCTKDataset
 
 MAX_LENGTH = 16384 * 14
 
@@ -26,6 +27,80 @@ class Sample(NamedTuple):
     specs: Tensor
     noisy_specs: Tensor
     spec_lengths: Tensor
+
+
+class VCTKDataModule(pl.LightningDataModule):
+    """LibriTTS DataModule."""
+
+    def __init__(
+        self,
+        data_dir: str,
+        batch_size: int = 24,
+        num_workers: int = os.cpu_count(),
+        max_length: int = MAX_LENGTH,
+        n_fft: int = 2048,
+        win_length: int = 1024,
+        hop_length: int = 256,
+    ) -> None:
+        super().__init__()
+        self.save_hyperparameters()
+
+        self.data_dir = Path(data_dir)
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.max_length = max_length
+        self.n_fft = n_fft
+        self.win_length = win_length
+        self.hop_length = hop_length
+
+    def setup(self, stage: Optional[str] = "fit") -> None:
+        """Setup datasets."""
+        dataset = VCTKDataset(
+            self.data_dir,
+            max_length=self.max_length,
+            n_fft=self.n_fft,
+            win_length=self.win_length,
+            hop_length=self.hop_length,
+        )
+        train_split = int(np.floor(len(dataset) * 0.8))
+        val_split = int(np.ceil(len(dataset) * 0.2))
+
+        assert (train_split + val_split) == len(dataset)
+
+        self.train_dataset, self.val_dataset = torch.utils.data.random_split(
+            dataset, lengths=(train_split, val_split)
+        )
+
+        self.val_dataset, self.test_dataset = torch.utils.data.random_split(
+            self.val_dataset, lengths=(val_split // 2, val_split // 2)
+        )
+
+    def train_dataloader(self) -> DataLoader:
+        """Train dataloader."""
+        return DataLoader(
+            self.train_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=True,
+        )
+
+    def val_dataloader(self) -> DataLoader:
+        """Validation dataloader."""
+        return DataLoader(
+            self.val_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
+
+    def test_dataloader(self) -> DataLoader:
+        """Test dataloader."""
+        return DataLoader(
+            self.test_dataset,
+            batch_size=self.batch_size,
+            num_workers=self.num_workers,
+            shuffle=False,
+        )
 
 
 class LibriTTSDataModule(pl.LightningDataModule):

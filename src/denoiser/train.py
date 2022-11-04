@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning import loggers
 
-from src.denoiser.data import LibriTTSDataModule
+from src.denoiser.data import LibriTTSDataModule, VCTKDataModule
 from src.denoiser.modeling.waveunet.model import WaveUNet
 
 
@@ -34,7 +34,7 @@ def main() -> None:
 
     model = WaveUNet()
 
-    datamodule = LibriTTSDataModule(args.data_path, batch_size=args.batch_size)
+    datamodule = VCTKDataModule(args.data_path, batch_size=args.batch_size)
     logger = loggers.WandbLogger(
         project=args.project,
         save_dir=log_path,
