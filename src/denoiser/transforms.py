@@ -256,7 +256,7 @@ class VolTransform(nn.Module):
 class NoiseFromFile(nn.Module):
     """Add background noise from random file."""
 
-    def __init__(self, root: Path, p=0.5, sample_rate=24000, num_samples: int = 1000):
+    def __init__(self, root: Path, p=0.5, sample_rate=24000, num_samples: int = 100):
         super().__init__()
         self.root = root
         self.p = p
