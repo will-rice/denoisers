@@ -9,7 +9,7 @@ from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
 from src.denoiser import utils
-from src.denoiser.data import Sample
+from src.denoiser.datasets.vctk import Sample
 from src.denoiser.utils import log_audio_batch, plot_image_from_audio
 
 

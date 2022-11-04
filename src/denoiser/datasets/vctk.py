@@ -1,5 +1,6 @@
 """VCTK dataset."""
 from pathlib import Path
+from typing import NamedTuple
 
 import torch
 import torch.nn.functional as F
@@ -7,7 +8,6 @@ import torchaudio
 from torch import Tensor, nn
 from torch.utils.data import Dataset
 
-from src.denoiser.data import Sample
 from src.denoiser.transforms import (
     BreakTransform,
     ClipTransform,
@@ -22,6 +22,17 @@ from src.denoiser.transforms import (
     TimeNoiseMask,
     VolTransform,
 )
+
+
+class Sample(NamedTuple):
+    """Sample object for easy access to model inputs."""
+
+    audio: Tensor
+    noisy_audio: Tensor
+    audio_lengths: Tensor
+    specs: Tensor
+    noisy_specs: Tensor
+    spec_lengths: Tensor
 
 
 class VCTKDataset(Dataset):

@@ -1,7 +1,7 @@
 """Data modules."""
 import os
 from pathlib import Path
-from typing import Any, NamedTuple, Optional
+from typing import Any, Optional
 
 import h5py
 import numpy as np
@@ -10,23 +10,12 @@ import torch
 import torchaudio
 from torch import Tensor
 from torch.nn import functional as F
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 
 from src.denoiser import transforms
 from src.denoiser.datasets.vctk import VCTKDataset
 
 MAX_LENGTH = 16384 * 14
-
-
-class Sample(NamedTuple):
-    """Sample object for easy access to model inputs."""
-
-    audio: Tensor
-    noisy_audio: Tensor
-    audio_lengths: Tensor
-    specs: Tensor
-    noisy_specs: Tensor
-    spec_lengths: Tensor
 
 
 class VCTKDataModule(pl.LightningDataModule):
