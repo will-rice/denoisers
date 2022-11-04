@@ -15,7 +15,7 @@ from torch.utils.data import DataLoader
 from src.denoiser import transforms
 from src.denoiser.datasets.vctk import VCTKDataset
 
-MAX_LENGTH = 16384 * 14
+MAX_LENGTH = 16384 * 10
 
 
 class VCTKDataModule(pl.LightningDataModule):
