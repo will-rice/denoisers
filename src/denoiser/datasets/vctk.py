@@ -79,11 +79,12 @@ class VCTKDataset(Dataset):
     def __getitem__(self, idx):
         sample = self._samples[idx]
 
-        audio, sr = torchaudio.load(sample).squeeze()
+        audio, sr = torchaudio.load(sample)
 
         if sr != self._sample_rate:
             torchaudio.transforms.Resample(sr, self._sample_rate)(audio)
 
+        audio = audio.squeeze(0)
         audio_length = audio.size(0)
 
         noisy = torch.clone(audio)
