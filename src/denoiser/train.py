@@ -29,6 +29,8 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    pl.seed_everything(args.seed)
+
     log_path = args.log_path / args.name
     log_path.mkdir(exist_ok=True)
 
