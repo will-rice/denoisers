@@ -60,8 +60,10 @@ class VCTKDataModule(pl.LightningDataModule):
             dataset, lengths=(train_split, val_split)
         )
 
+        val_split = int(np.floor(len(dataset) * 0.5))
+        test_split = int(np.ceil(len(dataset) * 0.5))
         self.val_dataset, self.test_dataset = torch.utils.data.random_split(
-            self.val_dataset, lengths=(val_split // 2 + 1, val_split // 2)
+            self.val_dataset, lengths=(val_split, test_split)
         )
 
     def train_dataloader(self) -> DataLoader:
