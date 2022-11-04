@@ -195,7 +195,7 @@ class WaveUNet(pl.LightningModule):
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
-        logits = self(batch.noisy_audio)
+        logits = self(batch.noisy_audio).detach()
         logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
@@ -230,7 +230,7 @@ class WaveUNet(pl.LightningModule):
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
-        logits = self(batch.noisy_audio)
+        logits = self(batch.noisy_audio).detach()
         logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
