@@ -84,7 +84,7 @@ class VCTKDataset(Dataset):
         if sr != self._sample_rate:
             torchaudio.transforms.Resample(sr, self._sample_rate)(audio)
 
-        audio = audio.squeeze(0)
+        audio = audio[0].squeeze(0)
         audio_length = audio.size(0)
 
         noisy = torch.clone(audio)
@@ -96,7 +96,7 @@ class VCTKDataset(Dataset):
             padded = F.pad(audio, (0, pad_length))
             noisy = F.pad(noisy, (0, pad_length))
         else:
-            padded = sample[: self._max_length]
+            padded = audio[: self._max_length]
             noisy = noisy[: self._max_length]
 
         spec = self.get_spectrogram(padded)
@@ -104,8 +104,8 @@ class VCTKDataset(Dataset):
         spec_length = spec.size(1)
 
         return Sample(
-            audio=padded.unsqueeze(0),
-            noisy_audio=noisy.unsqueeze(0),
+            audio=padded,
+            noisy_audio=noisy,
             audio_lengths=audio_length,
             specs=spec,
             noisy_specs=noisy_spec,
