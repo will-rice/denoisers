@@ -31,11 +31,8 @@ class RandomTransform(nn.Module):
 class GaussianNoise(nn.Module):
     """Gaussian Noise Transform."""
 
-    def __init__(self, min_intensity: float = 0.0, max_intensity: float = 1.0, p=0.5):
+    def __init__(self, p=0.5):
         super().__init__()
-        self.intensity_dist = torch.distributions.uniform.Uniform(
-            min_intensity, max_intensity
-        )
         self.p = p
 
     def forward(self, x: Tensor) -> Tensor:
@@ -45,7 +42,8 @@ class GaussianNoise(nn.Module):
 
         if random.random() < self.p:
 
-            intensity = self.intensity_dist.sample()
+            intensity = random.random()
+            print(intensity)
             noise = torch.randn_like(x) * intensity
             x += noise
 
