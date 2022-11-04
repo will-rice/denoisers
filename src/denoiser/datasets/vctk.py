@@ -104,8 +104,8 @@ class VCTKDataset(Dataset):
         spec_length = spec.size(1)
 
         return Sample(
-            audio=padded,
-            noisy_audio=noisy,
+            audio=padded.unsqueeze(0),
+            noisy_audio=noisy.unsqueeze(0),
             audio_lengths=audio_length,
             specs=spec,
             noisy_specs=noisy_spec,
