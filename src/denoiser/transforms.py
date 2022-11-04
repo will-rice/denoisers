@@ -43,7 +43,6 @@ class GaussianNoise(nn.Module):
         if random.random() < self.p:
 
             intensity = random.random()
-            print(intensity)
             noise = torch.randn_like(x) * intensity
             x += noise
 
