@@ -190,6 +190,9 @@ class WaveUNet(pl.LightningModule):
 
         return loss
 
+    def on_train_epoch_end(self) -> None:
+        self.snr.reset()
+
     def validation_step(
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
@@ -226,6 +229,9 @@ class WaveUNet(pl.LightningModule):
         audio, noisy, preds, lengths = validation_step_outputs[-1]["outputs"]
         log_audio_batch(audio, noisy, preds, lengths, name="val")
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
+
+    def on_validation_epoch_end(self) -> None:
+        self.snr.reset()
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
