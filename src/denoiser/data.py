@@ -13,7 +13,7 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from src.denoiser import transforms
-from src.denoiser.datasets.vctk import VCTKDataset
+from src.denoiser.datasets.vctk import Sample, VCTKDataset
 
 MAX_LENGTH = 16384 * 10
 
