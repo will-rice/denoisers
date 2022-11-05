@@ -190,9 +190,6 @@ class WaveUNet(pl.LightningModule):
 
         return loss
 
-    def on_train_epoch_end(self) -> None:
-        self.snr.reset()
-
     def validation_step(
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
