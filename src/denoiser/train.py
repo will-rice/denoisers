@@ -36,7 +36,11 @@ def main() -> None:
 
     model = WaveUNet()
 
-    datamodule = VCTKDataModule(args.data_path, batch_size=args.batch_size)
+    if args.dataset == "libritts":
+        datamodule = LibriTTSDataModule(args.data_path, args.batch_size)
+    else:
+        datamodule = VCTKDataModule(args.data_path, batch_size=args.batch_size)
+
     logger = loggers.WandbLogger(
         project=args.project,
         save_dir=log_path,
