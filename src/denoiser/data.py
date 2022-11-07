@@ -3,7 +3,6 @@ import os
 from pathlib import Path
 from typing import Any, Optional
 
-import h5py
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -23,7 +22,7 @@ class VCTKDataModule(pl.LightningDataModule):
 
     def __init__(
         self,
-        data_dir: str,
+        data_dir: Path,
         batch_size: int = 24,
         num_workers: int = os.cpu_count(),
         max_length: int = MAX_LENGTH,
@@ -34,7 +33,7 @@ class VCTKDataModule(pl.LightningDataModule):
         super().__init__()
         self.save_hyperparameters()
 
-        self.data_dir = Path(data_dir)
+        self.data_dir = data_dir
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.max_length = max_length

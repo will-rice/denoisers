@@ -139,10 +139,7 @@ class WaveUNet(pl.LightningModule):
             nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
         )
         metrics = MetricCollection(
-            audio.ScaleInvariantSignalDistortionRatio(),
-            audio.ScaleInvariantSignalNoiseRatio(),
             audio.SignalNoiseRatio(),
-            audio.SignalDistortionRatio(),
         )
         self.train_metrics = metrics.clone(prefix="train_")
         self.val_metrics = metrics.clone(prefix="val_")
@@ -222,7 +219,12 @@ class WaveUNet(pl.LightningModule):
 
         return {
             "loss": loss,
-            "outputs": (batch.audio, batch.noisy_audio, pred, batch.audio_lengths),
+            "outputs": (
+                batch.audio.detach(),
+                batch.noisy_audio.detach(),
+                pred.detach(),
+                batch.audio_lengths.detach(),
+            ),
         }
 
     def validation_epoch_end(

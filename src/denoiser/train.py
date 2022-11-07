@@ -36,10 +36,7 @@ def main() -> None:
 
     model = WaveUNet()
 
-    if args.dataset == "libritts":
-        datamodule = LibriTTSDataModule(args.data_path, args.batch_size)
-    else:
-        datamodule = VCTKDataModule(args.data_path, batch_size=args.batch_size)
+    datamodule = VCTKDataModule(args.data_path, batch_size=args.batch_size)
 
     logger = loggers.WandbLogger(
         project=args.project,
@@ -67,6 +64,7 @@ def main() -> None:
         precision=16 if torch.cuda.is_available() else 32,
         callbacks=[checkpoint_callback, swa_callback],
         track_grad_norm=True,
+        val_check_interval=1,
     )
     logger.watch(model)
 
