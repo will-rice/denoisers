@@ -25,7 +25,7 @@ class VCTKDataModule(pl.LightningDataModule):
         self,
         data_dir: str,
         batch_size: int = 24,
-        num_workers: int = os.cpu_count(),
+        num_workers: int = os.cpu_count() // 2,
         max_length: int = MAX_LENGTH,
         n_fft: int = 2048,
         win_length: int = 1024,

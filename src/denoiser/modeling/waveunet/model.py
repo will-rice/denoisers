@@ -214,7 +214,12 @@ class WaveUNet(pl.LightningModule):
 
         return {
             "loss": loss,
-            "outputs": (batch.audio, batch.noisy_audio, pred, batch.audio_lengths),
+            "outputs": (
+                batch.audio.detach(),
+                batch.noisy_audio.detach(),
+                pred.detach(),
+                batch.audio_lengths.detach(),
+            ),
         }
 
     def validation_epoch_end(
