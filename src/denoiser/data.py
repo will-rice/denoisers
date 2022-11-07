@@ -51,8 +51,8 @@ class VCTKDataModule(pl.LightningDataModule):
             win_length=self.win_length,
             hop_length=self.hop_length,
         )
-        train_split = int(np.floor(len(dataset) * 0.8))
-        val_split = int(np.ceil(len(dataset) * 0.2))
+        train_split = int(np.floor(len(dataset) * 0.95))
+        val_split = int(np.ceil(len(dataset) * 0.05))
 
         assert (train_split + val_split) == len(dataset)
 
