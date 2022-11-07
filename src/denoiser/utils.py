@@ -20,7 +20,7 @@ def sequence_mask(length, max_length=None):
         max_length = length.max()
     x = torch.arange(max_length, dtype=length.dtype, device=length.device)
     mask = x.unsqueeze(0) < length.unsqueeze(1)
-    return mask
+    return mask.unsqueeze(1)
 
 
 def plot_image_batch(
