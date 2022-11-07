@@ -53,7 +53,7 @@ def main() -> None:
         filename="{epoch}-{val_loss:.4f}",
         save_last=True,
     )
-    swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=3e-4)
+    swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=1e-6)
 
     pretrained = args.checkpoint_path
     last_checkpoint = pretrained if pretrained else log_path / "last.ckpt"
