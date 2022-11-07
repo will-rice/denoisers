@@ -138,6 +138,7 @@ class WaveUNet(pl.LightningModule):
         self.out = nn.Sequential(
             nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
         )
+        self.loss_fn = nn.L1Loss()
         self.snr = SignalNoiseRatio()
 
     def forward(self, inputs: Tensor) -> Tensor:
@@ -178,10 +179,10 @@ class WaveUNet(pl.LightningModule):
         logits = logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, batch.audio)
+            loss = self.loss_fn(logits, batch.audio)
             snr = self.snr(logits, batch.audio)
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            loss = self.loss_fn(logits, batch.noisy_audio - batch.audio)
             snr = self.snr(batch.noisy_audio - logits, batch.audio)
 
         self.log_dict(
@@ -195,15 +196,15 @@ class WaveUNet(pl.LightningModule):
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
-        logits = self(batch.noisy_audio).detach()
+        logits = self(batch.noisy_audio)
         logits = logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, batch.audio)
+            loss = self.loss_fn(logits, batch.audio)
             snr = self.snr(logits, batch.audio)
             pred = logits
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            loss = self.loss_fn(logits, batch.noisy_audio - batch.audio)
             snr = self.snr(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
@@ -223,7 +224,7 @@ class WaveUNet(pl.LightningModule):
             List[List[Union[Tensor, Dict[str, Any]]]],
         ],
     ) -> None:
-        audio, noisy, preds, lengths = validation_step_outputs[-1]["outputs"]
+        audio, noisy, preds, lengths = validation_step_outputs[0]["outputs"]
         log_audio_batch(audio, noisy, preds, lengths, name="val")
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
 
@@ -233,21 +234,19 @@ class WaveUNet(pl.LightningModule):
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
-        logits = self(batch.noisy_audio).detach()
+        logits = self(batch.noisy_audio)
         logits = logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
-            loss = F.l1_loss(logits, batch.audio)
+            loss = self.loss_fn(logits, batch.audio)
             snr = self.snr(logits, batch.audio)
             pred = logits
         else:
-            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            loss = self.loss_fn(logits, batch.noisy_audio - batch.audio)
             snr = self.snr(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
-        self.log_dict(
-            {"test_loss": loss, "test_snr": snr}, batch_size=batch.audio.size(1)
-        )
+        self.log_dict({"test_loss": loss, "test_snr": snr})
 
         return {
             "loss": loss,
