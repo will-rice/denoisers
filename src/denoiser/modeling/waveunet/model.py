@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
-from torchmetrics import SignalNoiseRatio
+from torchmetrics import MetricCollection, audio
 
 from src.denoiser import utils
 from src.denoiser.datasets.vctk import Sample
@@ -138,7 +138,15 @@ class WaveUNet(pl.LightningModule):
         self.out = nn.Sequential(
             nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
         )
-        self.snr = SignalNoiseRatio()
+        metrics = MetricCollection(
+            audio.ScaleInvariantSignalDistortionRatio(),
+            audio.ScaleInvariantSignalNoiseRatio(),
+            audio.SignalNoiseRatio(),
+            audio.SignalDistortionRatio(),
+        )
+        self.train_metrics = metrics.clone(prefix="train_")
+        self.val_metrics = metrics.clone(prefix="val_")
+        self.test_metrics = metrics.clone(prefix="test_")
 
     def forward(self, inputs: Tensor) -> Tensor:
         out = inputs
@@ -179,40 +187,38 @@ class WaveUNet(pl.LightningModule):
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
+            metrics = self.train_metrics(logits, batch.audio)
         else:
             loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            metrics = self.train_metrics(batch.noisy_audio - logits, batch.audio)
 
-        self.log_dict(
-            {"train_loss": loss, "train_snr": snr}, batch_size=batch.audio.size(1)
-        )
+        self.log_dict({"train_loss": loss, **metrics}, batch_size=batch.audio.size(1))
 
         return loss
 
     def on_train_epoch_end(self) -> None:
-        self.snr.reset()
+        self.train_metrics.reset()
 
     def validation_step(
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
-        masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
-        logits = self(batch.noisy_audio)
+        masks = utils.sequence_mask(
+            batch.audio_lengths, batch.noisy_audio.size(-1)
+        ).detach()
+        logits = self(batch.noisy_audio).detach()
         logits = logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
+            self.val_metrics.update(logits, batch.audio)
             pred = logits
         else:
             loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            self.val_metrics.update(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
-        self.log_dict(
-            {"val_loss": loss, "val_snr": snr}, batch_size=batch.audio.size(1)
-        )
+        self.log_dict({"val_loss": loss})
 
         return {
             "loss": loss,
@@ -231,31 +237,38 @@ class WaveUNet(pl.LightningModule):
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
 
     def on_validation_epoch_end(self) -> None:
-        self.snr.reset()
+        metrics = self.val_metrics.compute()
+        self.log_dict(metrics)
+        self.val_metrics.reset()
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
-        masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
-        logits = self(batch.noisy_audio)
+        masks = utils.sequence_mask(
+            batch.audio_lengths, batch.noisy_audio.size(-1)
+        ).detach()
+        logits = self(batch.noisy_audio).detach()
         logits = logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
+            self.test_metrics.update(logits, batch.audio)
             pred = logits
         else:
             loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            self.test_metrics.update(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
-        self.log_dict(
-            {"test_loss": loss, "test_snr": snr}, batch_size=batch.audio.size(1)
-        )
+        self.log_dict({"test_loss": loss})
 
         return {
             "loss": loss,
             "outputs": (batch.audio, batch.noisy_audio, pred),
         }
+
+    def on_test_epoch_end(self) -> None:
+        metrics = self.test_metrics.compute()
+        self.log_dict(metrics)
+        self.test_metrics.reset()
 
     def configure_optimizers(self) -> Any:
         """Set optimizer."""
