@@ -190,13 +190,16 @@ class WaveUNet(pl.LightningModule):
 
         return loss
 
+    def on_train_epoch_end(self) -> None:
+        self.snr.reset()
+
     def validation_step(
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
-        logits = self(batch.noisy_audio).detach()
-        logits.masked_fill(masks, 0.0)
+        logits = self(batch.noisy_audio)
+        logits = logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
@@ -233,8 +236,8 @@ class WaveUNet(pl.LightningModule):
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
-        logits = self(batch.noisy_audio).detach()
-        logits.masked_fill(masks, 0.0)
+        logits = self(batch.noisy_audio)
+        logits = logits.masked_fill(masks, 0.0)
 
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
