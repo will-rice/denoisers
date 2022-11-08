@@ -261,8 +261,5 @@ class WaveUNet(pl.LightningModule):
     def configure_optimizers(self) -> Any:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4, weight_decay=1e-6)
-        lr_schedule = torch.optim.lr_scheduler.ExponentialLR(
-            optimizer, gamma=0.9997, verbose=True
-        )
 
-        return {"optimizer": optimizer, "lr_scheduler": lr_schedule}
+        return {"optimizer": optimizer}
