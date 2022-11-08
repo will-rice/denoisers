@@ -7,7 +7,6 @@ import torch
 import torchmetrics.functional as FM
 from torch import Tensor, nn
 from torch.nn import functional as F
-from torchmetrics import SignalNoiseRatio
 
 from src.denoiser import utils
 from src.denoiser.datasets.vctk import Sample
