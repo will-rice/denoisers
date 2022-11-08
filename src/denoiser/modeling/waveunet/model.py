@@ -176,7 +176,7 @@ class WaveUNet(pl.LightningModule):
         """Train step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits = logits.masked_fill(masks, 0.0)
+        logits = logits.masked_fill(~masks, 0.0)
 
         if self.autoencoder:
             loss = self.loss_fn(logits, batch.audio)
@@ -197,7 +197,7 @@ class WaveUNet(pl.LightningModule):
         """Val step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio).detach()
-        logits = logits.masked_fill(masks, 0.0)
+        logits = logits.masked_fill(~masks, 0.0)
 
         if self.autoencoder:
             loss = self.loss_fn(logits, batch.audio)
@@ -240,7 +240,7 @@ class WaveUNet(pl.LightningModule):
         """Test step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
         logits = self(batch.noisy_audio)
-        logits = logits.masked_fill(masks, 0.0)
+        logits = logits.masked_fill(~masks, 0.0)
 
         if self.autoencoder:
             loss = self.loss_fn(logits, batch.audio)
