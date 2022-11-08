@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Union
 
 import pytorch_lightning as pl
 import torch
+import torchmetrics.functional as FM
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
@@ -138,8 +139,6 @@ class WaveUNet(pl.LightningModule):
         self.out = nn.Sequential(
             nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
         )
-        self.loss_fn = nn.L1Loss()
-        self.snr = SignalNoiseRatio()
 
     def forward(self, inputs: Tensor) -> Tensor:
         out = inputs
@@ -179,15 +178,13 @@ class WaveUNet(pl.LightningModule):
         logits = logits.masked_fill(~masks, 0.0)
 
         if self.autoencoder:
-            loss = self.loss_fn(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
+            loss = F.l1_loss(logits, batch.audio)
+            snr = FM.signal_noise_ratio(logits, batch.audio)
         else:
-            loss = self.loss_fn(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = FM.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
 
-        self.log_dict(
-            {"train_loss": loss, "train_snr": snr}, batch_size=batch.audio.size(1)
-        )
+        self.log_dict({"train_loss": loss, "train_snr": snr})
 
         return loss
 
@@ -200,17 +197,14 @@ class WaveUNet(pl.LightningModule):
         logits = logits.masked_fill(~masks, 0.0)
 
         if self.autoencoder:
-            loss = self.loss_fn(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
-            pred = logits
+            loss = F.l1_loss(logits, batch.audio)
+            snr = FM.signal_noise_ratio(logits, batch.audio)
         else:
-            loss = self.loss_fn(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = FM.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
-        self.log_dict(
-            {"val_loss": loss, "val_snr": snr}, batch_size=batch.audio.size(1)
-        )
+        self.log_dict({"val_loss": loss, "val_snr": snr})
 
         return {
             "loss": loss,
@@ -243,12 +237,11 @@ class WaveUNet(pl.LightningModule):
         logits = logits.masked_fill(~masks, 0.0)
 
         if self.autoencoder:
-            loss = self.loss_fn(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
-            pred = logits
+            loss = F.l1_loss(logits, batch.audio)
+            snr = FM.signal_noise_ratio(logits, batch.audio)
         else:
-            loss = self.loss_fn(logits, batch.noisy_audio - batch.audio)
-            snr = self.snr(batch.noisy_audio - logits, batch.audio)
+            loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
+            snr = FM.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
         self.log_dict({"test_loss": loss, "test_snr": snr})
