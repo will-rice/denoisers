@@ -212,11 +212,15 @@ class WaveUNet(pl.LightningModule):
             snr = FM.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
-        pesq = FM.audio.pesq.perceptual_evaluation_speech_quality(
-            AF.resample(batch.audio, 24000, 16000),
-            AF.resample(pred, 24000, 16000),
-            16000,
-            "wb",
+        pesq = (
+            FM.audio.pesq.perceptual_evaluation_speech_quality(
+                AF.resample(batch.audio, 24000, 16000),
+                AF.resample(pred, 24000, 16000),
+                16000,
+                "wb",
+            )
+            .detach()
+            .cpu()
         )
 
         self.log_dict({"val_loss": loss, "val_snr": snr, "pesq": pesq})
