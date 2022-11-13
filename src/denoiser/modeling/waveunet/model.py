@@ -4,9 +4,12 @@ from typing import Any, Dict, List, Union
 
 import pytorch_lightning as pl
 import torch
+import torchaudio
+import torchaudio.functional as AF
 import torchmetrics.functional as FM
 from torch import Tensor, nn
 from torch.nn import functional as F
+from torchmetrics.audio.pesq import PerceptualEvaluationSpeechQuality
 
 from src.denoiser import utils
 from src.denoiser.datasets.vctk import Sample
@@ -82,14 +85,18 @@ class WaveUNet(pl.LightningModule):
     """WaveUNet Model."""
 
     def __init__(
-        self, n_layers: int = 12, channels_interval: int = 24, autoencoder=False
+        self,
+        n_layers: int = 12,
+        channels_interval: int = 24,
+        autoencoder=False,
+        sample_rate=24000,
     ):
         super().__init__()
-        self.save_hyperparameters()
 
         self.n_layers = n_layers
         self.channels_interval = channels_interval
         self.autoencoder = autoencoder
+        self.sample_rate = float(sample_rate)
 
         encoder_in_channels_list = [1] + [
             i * self.channels_interval for i in range(1, self.n_layers)
@@ -165,6 +172,7 @@ class WaveUNet(pl.LightningModule):
 
         if not self.training:
             out = out.clamp(-1.0, 1.0)
+            out = torchaudio.functional.highpass_biquad(out, self.sample_rate, 120)
 
         return out.to(torch.float32)
 
@@ -198,12 +206,20 @@ class WaveUNet(pl.LightningModule):
         if self.autoencoder:
             loss = F.l1_loss(logits, batch.audio)
             snr = FM.signal_noise_ratio(logits, batch.audio)
+            pred = batch.noisy_audio - logits
         else:
             loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
             snr = FM.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
-        self.log_dict({"val_loss": loss, "val_snr": snr})
+        pesq = FM.audio.pesq.perceptual_evaluation_speech_quality(
+            AF.resample(batch.audio, 24000, 16000),
+            AF.resample(pred, 24000, 16000),
+            16000,
+            "wb",
+        )
+
+        self.log_dict({"val_loss": loss, "val_snr": snr, "pesq": pesq})
 
         return {
             "loss": loss,
