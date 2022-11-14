@@ -368,6 +368,38 @@ class TimeNoiseMask(nn.Module):
         return inv_audio.squeeze()
 
 
+class FreqMask(nn.Module):
+    def __init__(self, num_masks, size, p=0.5):
+        super().__init__()
+        self.num_masks = num_masks
+        self.size = size
+        self.p = p
+        self.transform = torchaudio.transforms.FrequencyMasking(
+            freq_mask_param=self.size
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        if random.random() < self.p:
+            for i in range(self.num_masks):
+                x = self.transform(x)
+        return x
+
+
+class TimeMask(nn.Module):
+    def __init__(self, num_masks, size, p=0.5):
+        super().__init__()
+        self.num_masks = num_masks
+        self.size = size
+        self.p = p
+        self.transform = torchaudio.transforms.TimeMasking(time_mask_param=self.size)
+
+    def forward(self, x: Tensor) -> Tensor:
+        if random.random() < self.p:
+            for i in range(self.num_masks):
+                x = self.transform(x)
+        return x
+
+
 class CutOut(nn.Module):
     """Randomly mask out one or more patches from an image.
     Args:

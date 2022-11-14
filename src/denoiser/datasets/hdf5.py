@@ -1,18 +1,16 @@
-"""VCTK dataset."""
+"""HDF5 Dataset class."""
 from pathlib import Path
-from typing import NamedTuple
 
+import h5py
+import numpy as np
 import torch
 import torch.nn.functional as F
-import torchaudio
 import torchaudio.functional as AF
 from torch import Tensor, nn
 from torch.utils.data import Dataset
 
 from src.denoiser.datasets import Batch
 from src.denoiser.transforms import (
-    BreakTransform,
-    ClipTransform,
     CutOut,
     FilterTransform,
     FreqNoiseMask,
@@ -26,9 +24,7 @@ from src.denoiser.transforms import (
 )
 
 
-class VCTKDataset(Dataset):
-    """Simple dataset."""
-
+class HDF5Dataset(Dataset):
     def __init__(
         self,
         root: Path,
@@ -52,8 +48,8 @@ class VCTKDataset(Dataset):
             GaussianNoise(p=1.0),
             VolTransform(),
             FilterTransform(),
-            ClipTransform(),
-            BreakTransform(),
+            # ClipTransform(),
+            # BreakTransform(),
             SpecTransform(),
             FreqNoiseMask(100, p=0.5),
             TimeNoiseMask(100, p=0.5),
@@ -62,20 +58,20 @@ class VCTKDataset(Dataset):
             NoiseFromFile(Path("/data/daps")),
         )
 
-        self._samples = list(self._root.glob("**/*.flac"))
+        self.samples = list(h5py.File(root, "r").values())
+        self.samples.append(list(h5py.File(root / "filler.hdf5", "r").values()))
 
     def __len__(self):
-        return len(self._samples)
+        return len(self.samples)
 
     def __getitem__(self, idx):
-        sample = self._samples[idx]
+        sample = self.samples[idx]
 
-        audio, sr = torchaudio.load(sample)
+        audio = sample["audio"][:]
 
-        if sr != self._sample_rate:
-            audio = AF.resample(audio, sr, self._sample_rate)
+        if audio.dtype == np.int16:
+            audio = audio.astype(np.float32) / 32768.0
 
-        audio = audio[0].squeeze(0)
         audio_length = audio.size(0)
 
         noisy = torch.clone(audio)
