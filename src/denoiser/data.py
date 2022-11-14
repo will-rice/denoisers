@@ -13,7 +13,8 @@ from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from src.denoiser import transforms
-from src.denoiser.datasets.vctk import Sample, VCTKDataset
+from src.denoiser.datasets import Batch
+from src.denoiser.datasets.vctk import VCTKDataset
 
 MAX_LENGTH = 16384 * 10
 
@@ -245,7 +246,7 @@ class LibriTTSDataModule(pl.LightningDataModule):
             spec_lengths.append(torch.tensor(spec_length))
             noisy_specs.append(noisy_spec)
 
-        return Sample(
+        return Batch(
             audio=torch.stack(audio).unsqueeze(1),
             audio_lengths=torch.stack(audio_lengths),
             noisy_audio=torch.stack(noisy_audio).unsqueeze(1),
