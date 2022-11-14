@@ -10,7 +10,7 @@ from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
 
 from src.denoiser import utils
-from src.denoiser.datasets.vctk import Sample
+from src.denoiser.datasets import Batch
 from src.denoiser.utils import log_audio_batch, plot_image_from_audio
 
 
@@ -173,7 +173,7 @@ class WaveUNet(pl.LightningModule):
         return out.to(torch.float32)
 
     def training_step(
-        self, batch: Sample, batch_idx: Any
+        self, batch: Batch, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
         masks = utils.sequence_mask(batch.audio_lengths, batch.noisy_audio.size(-1))
