@@ -5,6 +5,7 @@ from typing import NamedTuple
 import torch
 import torch.nn.functional as F
 import torchaudio
+import torchaudio.functional as AF
 from torch import Tensor, nn
 from torch.utils.data import Dataset
 
@@ -82,7 +83,7 @@ class VCTKDataset(Dataset):
         audio, sr = torchaudio.load(sample)
 
         if sr != self._sample_rate:
-            torchaudio.transforms.Resample(sr, self._sample_rate)(audio)
+            audio = AF.resample(audio, sr, self._sample_rate)
 
         audio = audio[0].squeeze(0)
         audio_length = audio.size(0)

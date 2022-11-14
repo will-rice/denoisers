@@ -168,7 +168,7 @@ class WaveUNet(pl.LightningModule):
 
         if not self.training:
             out = out.clamp(-1.0, 1.0)
-            out = AF.highpass_biquad(out, sample_rate=24000, cutoff_freq=120.0)
+            # out = AF.highpass_biquad(out, sample_rate=24000, cutoff_freq=120.0)
 
         return out.to(torch.float32)
 
