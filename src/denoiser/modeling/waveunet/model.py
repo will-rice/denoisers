@@ -5,11 +5,9 @@ from typing import Any, Dict, List, Union
 import pytorch_lightning as pl
 import torch
 import torchaudio
-import torchaudio.functional as AF
 import torchmetrics.functional as FM
 from torch import Tensor, nn
 from torch.nn import functional as F
-from torchmetrics.audio.pesq import PerceptualEvaluationSpeechQuality
 
 from src.denoiser import utils
 from src.denoiser.datasets.vctk import Sample
@@ -153,7 +151,7 @@ class WaveUNet(pl.LightningModule):
         for layer in self.encoder:
             out = layer(out)
             skip_connections.append(out)
-            out = out[:, :, ::2]
+            # out = out[:, :, ::2]
 
         out = self.middle(out)
 
@@ -191,7 +189,7 @@ class WaveUNet(pl.LightningModule):
             loss = F.l1_loss(logits, batch.noisy_audio - batch.audio)
             snr = FM.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
 
-        self.log_dict({"train_loss": loss, "train_snr": snr})
+        self.log_dict({"train_loss": loss, "train_snr": snr.mean().item()})
 
         return loss
 
@@ -212,14 +210,7 @@ class WaveUNet(pl.LightningModule):
             snr = FM.signal_noise_ratio(batch.noisy_audio - logits, batch.audio)
             pred = batch.noisy_audio - logits
 
-        pesq = FM.audio.pesq.perceptual_evaluation_speech_quality(
-            AF.resample(batch.audio, 24000, 16000),
-            AF.resample(pred, 24000, 16000),
-            16000,
-            "wb",
-        ).item()
-
-        self.log_dict({"val_loss": loss, "val_snr": snr, "pesq": pesq})
+        self.log_dict({"val_loss": loss, "val_snr": snr.mean().item()})
 
         return {
             "loss": loss,
@@ -241,9 +232,6 @@ class WaveUNet(pl.LightningModule):
         audio, noisy, preds, lengths = validation_step_outputs[0]["outputs"]
         log_audio_batch(audio, noisy, preds, lengths, name="val")
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
-
-    def on_validation_epoch_end(self) -> None:
-        self.snr.reset()
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
@@ -269,5 +257,6 @@ class WaveUNet(pl.LightningModule):
     def configure_optimizers(self) -> Any:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4, weight_decay=1e-6)
+        lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.9997)
 
-        return {"optimizer": optimizer}
+        return {"optimizer": optimizer, "lr_scheduler": lr_scheduler}
