@@ -59,7 +59,7 @@ class VCTKDataset(Dataset):
             TimeNoiseMask(100, p=0.5),
             NoiseOut(20, 5),
             CutOut(20, 5),
-            NoiseFromFile(Path("/data/daps")),
+            NoiseFromFile(Path("/data/DEMAND")),
         )
 
         self._samples = list(self._root.glob("**/*.flac"))
