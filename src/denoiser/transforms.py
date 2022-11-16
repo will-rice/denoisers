@@ -268,7 +268,8 @@ class NoiseFromFile(nn.Module):
 
         if random.random() < self.p:
             noise = random.choice(self.noises).squeeze().to(x.device)
-            x += noise[: len(x)]
+            random_start = random.randint(0, noise.size(0) - x.size(0))
+            x += noise[random_start : random_start + x.size(0)]
 
         return x
 
