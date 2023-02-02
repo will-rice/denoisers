@@ -1,9 +1,11 @@
 """Wave UNet Model."""
+import gc
 from dataclasses import dataclass
 from typing import Any, Dict, Union
 
 import pytorch_lightning as pl
 import torch
+from pytorch_lightning.utilities.memory import garbage_collection_cuda
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
@@ -264,6 +266,8 @@ class WaveUNet(pl.LightningModule):
     def on_validation_epoch_end(self) -> None:
         """Val epoch end."""
         self.snr.reset()
+        gc.collect()
+        garbage_collection_cuda()
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
         """Test step."""
