@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--debug", default=False, type=bool)
     parser.add_argument("--log_path", default="logs", type=Path)
-    parser.add_argument("--checkpoint_path", default=None, type=Path)
+    parser.add_argument("--ckpt_path", default=None, type=Path)
 
     args = parser.parse_args()
 
@@ -51,7 +51,7 @@ def main() -> None:
     swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=1e-6)
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
 
-    pretrained = args.checkpoint_path
+    pretrained = args.ckpt_path
     last_checkpoint = pretrained if pretrained else log_path / "last.ckpt"
 
     trainer = pl.Trainer(
@@ -63,6 +63,7 @@ def main() -> None:
         precision=16 if torch.cuda.is_available() else 32,
         callbacks=[checkpoint_callback, swa_callback, lr_monitor],
         val_check_interval=1000,
+        limit_val_batches=10,
         track_grad_norm=True,
     )
 
