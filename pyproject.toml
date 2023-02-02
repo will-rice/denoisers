@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "denoisers"
+version = "0.0.1"
+authors = [
+  { name="Will Rice", email="wrice20@gmail.com" },
+]
+description = "A package for training audio denoisers"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/will-rice/denoisers"
+"Bug Tracker" = "https://github.com/will-rice/denoisers/issues"
