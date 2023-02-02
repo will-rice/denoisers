@@ -62,6 +62,7 @@ def main() -> None:
         logger=logger,
         precision=16 if torch.cuda.is_available() else 32,
         callbacks=[checkpoint_callback, swa_callback, lr_monitor],
+        val_check_interval=1000,
         track_grad_norm=True,
     )
 
