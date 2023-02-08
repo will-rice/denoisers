@@ -24,89 +24,151 @@ class WaveUNetOutputs:
     logits: Tensor
 
 
-class DownSamplingLayer(nn.Module):
-    """DownSampling Layer."""
-
+class ConvBlock(nn.Module):
     def __init__(
-        self,
-        channel_in: int,
-        channel_out: int,
-        dilation: int = 1,
-        kernel_size: int = 15,
-        stride: int = 1,
-        padding: int = 7,
+        self, in_channels, out_channels, kernel_size, stride=1, padding=0, n_groups=8
     ):
         super().__init__()
-        self.main = nn.Sequential(
-            nn.Conv1d(
-                channel_in,
-                channel_out,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-                dilation=dilation,
-            ),
-            nn.BatchNorm1d(channel_out),
-            nn.LeakyReLU(0.2, inplace=True),
+        self.conv = nn.Conv1d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
         )
+        self.norm = nn.GroupNorm(n_groups, out_channels)
+        self.activation = nn.Mish()
 
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward Pass."""
-        x = self.main(x)
+    def forward(self, x):
+        x = self.conv(x)
+        x = self.norm(x)
+        x = self.activation(x)
         return x
 
 
-class UpSamplingLayer(nn.Module):
-    """UpSampling Layer."""
-
-    def __init__(
-        self,
-        channel_in: int,
-        channel_out: int,
-        kernel_size: int = 5,
-        stride: int = 1,
-        padding: int = 2,
-    ):
-        super(UpSamplingLayer, self).__init__()
-        self.main = nn.Sequential(
-            nn.Conv1d(
-                channel_in,
-                channel_out,
-                kernel_size=kernel_size,
-                stride=stride,
-                padding=padding,
-            ),
-            nn.BatchNorm1d(channel_out),
-            nn.LeakyReLU(0.2, inplace=True),
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward Pass."""
-        x = self.main(x)
-        return x
-
-
-class AttentionBlock(nn.Module):
-    """Attention Block."""
-
-    def __init__(self, in_channels: int, out_channels: int):
+class ResidualBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, padding=0):
         super().__init__()
-        self.conv_g = nn.Conv1d(in_channels, out_channels, kernel_size=1, bias=False)
-        self.conv_x = nn.Conv1d(in_channels, out_channels, kernel_size=1, bias=False)
-        self.conv_f = nn.Conv1d(out_channels, out_channels, kernel_size=1)
-        self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x: Tensor, skip: Tensor) -> Tensor:
-        """Forward Pass."""
-        residual = x
-        x = self.conv_x(x)
-        skip = self.conv_g(skip)
-        x += skip
-        x = self.sigmoid(x)
-        x = self.conv_f(x)
-        x = self.sigmoid(x)
-        x *= residual
+        self.conv_in = ConvBlock(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+        )
+        self.conv_out = ConvBlock(
+            out_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=1,
+            padding="same",
+        )
+        self.residual_conv = nn.Conv1d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+        )
+        self.attn = nn.MultiheadAttention(out_channels, num_heads=4, batch_first=True)
+
+    def forward(self, x):
+        residual = self.residual_conv(x)
+        x = self.conv_in(x)
+        x = self.conv_out(x)
+        x = x.transpose(2, 1)
+        x = self.attn(x, x, x)[0]
+        x = x.transpose(2, 1)
+        x += residual
         return x
+
+
+class Encoder(nn.Module):
+    def __init__(self, in_channels, kernel_size=5, n_layers=12):
+        super().__init__()
+        self.in_channels = in_channels
+        self.n_layers = n_layers
+
+        self.layers = nn.ModuleList()
+        for i in range(self.n_layers):
+            out_channels = 8 * (i + 1)
+            self.layers.append(
+                ResidualBlock(
+                    in_channels,
+                    out_channels,
+                    kernel_size=kernel_size,
+                    stride=2,
+                    padding=2,
+                )
+            )
+            in_channels = out_channels
+
+    def forward(self, x):
+        skips = []
+        for layer in self.layers:
+            x = layer(x)
+            skips.append(x)
+        return x, skips
+
+
+class Upsample1D(nn.Module):
+    """
+    An upsampling layer with an optional convolution. (modified from Diffusers)
+    """
+
+    def __init__(self, in_channels, out_channels=None, use_conv_transpose=False):
+        super().__init__()
+        self.in_channels = in_channels
+        self.out_channels = out_channels or in_channels
+        self.use_conv_transpose = use_conv_transpose
+
+        if use_conv_transpose:
+            self.conv = nn.ConvTranspose1d(self.in_channels, self.out_channels, 4, 2, 1)
+        else:
+            self.conv = nn.Conv1d(self.in_channels, self.out_channels, 3, padding=1)
+
+        self.cross_attn = nn.MultiheadAttention(
+            self.out_channels, num_heads=4, batch_first=True
+        )
+
+    def forward(self, x, skip):
+        assert x.shape[1] == self.in_channels
+        if self.use_conv_transpose:
+            return self.conv(x)
+
+        x = F.interpolate(x, scale_factor=2.0, mode="nearest")
+        x = self.conv(x)
+        x = self.cross_attn(
+            x.transpose(2, 1), skip.transpose(2, 1), skip.transpose(2, 1)
+        )[0].transpose(2, 1)
+
+        return x
+
+
+class Decoder(nn.Module):
+    def __init__(self, in_channels, n_layers):
+        super().__init__()
+
+        self.in_channels = in_channels
+        self.n_layers = n_layers
+
+        self.layers = nn.ModuleList()
+        for i in reversed(range(n_layers)):
+            out_channels = 8 * (i + 1)
+            self.layers.append(Upsample1D(in_channels, out_channels=out_channels))
+            in_channels = out_channels
+
+        self.conv_out = nn.Conv1d(out_channels, 1, kernel_size=1)
+        self.tanh = nn.Tanh()
+
+    def forward(self, inputs, skips):
+        out = inputs
+        for skip, layer in zip(reversed(skips), self.layers):
+            out = layer(out, skip)
+        out = self.conv_out(out)
+        out = self.tanh(out)
+        return out
 
 
 class WaveUNet(pl.LightningModule):
@@ -122,53 +184,10 @@ class WaveUNet(pl.LightningModule):
         self.channels_interval = channels_interval
         self.autoencoder = autoencoder
 
-        encoder_in_channels_list = [1] + [
-            i * self.channels_interval for i in range(1, self.n_layers)
-        ]
-        encoder_out_channels_list = [
-            i * self.channels_interval for i in range(1, self.n_layers + 1)
-        ]
+        self.encoder = Encoder(1, n_layers=n_layers)
+        self.middle = ResidualBlock(8 * n_layers, 8 * n_layers, kernel_size=5, stride=1)
+        self.decoder = Decoder(8 * n_layers, n_layers=n_layers)
 
-        # 1=>2=>3=>4=>5=>6=>7=>8=>9=>10=>11=>12
-        # 16384=>8192=>4096=>2048=>1024=>512=>256=>128=>64=>32=>16=>8=>4
-        self.encoder = nn.ModuleList()
-        for i in range(self.n_layers):
-            self.encoder.append(
-                DownSamplingLayer(
-                    channel_in=encoder_in_channels_list[i],
-                    channel_out=encoder_out_channels_list[i],
-                )
-            )
-
-        self.middle = nn.Sequential(
-            nn.Conv1d(
-                self.n_layers * self.channels_interval,
-                self.n_layers * self.channels_interval,
-                15,
-                stride=1,
-                padding=7,
-            ),
-            nn.BatchNorm1d(self.n_layers * self.channels_interval),
-            nn.LeakyReLU(0.2, inplace=True),
-        )
-
-        decoder_in_channels_list = [
-            (2 * i + 1) * self.channels_interval for i in range(1, self.n_layers)
-        ] + [2 * self.n_layers * self.channels_interval]
-        decoder_in_channels_list = decoder_in_channels_list[::-1]
-        decoder_out_channels_list = encoder_out_channels_list[::-1]
-        self.decoder = nn.ModuleList()
-        for i in range(self.n_layers):
-            self.decoder.append(
-                UpSamplingLayer(
-                    channel_in=decoder_in_channels_list[i],
-                    channel_out=decoder_out_channels_list[i],
-                )
-            )
-
-        self.out = nn.Sequential(
-            nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
-        )
         self.loss_fn = nn.L1Loss()
         self.snr = SignalNoiseRatio()
 
@@ -176,30 +195,12 @@ class WaveUNet(pl.LightningModule):
         """Forward Pass."""
         out = inputs
 
-        skip_connections = []
-        for layer in self.encoder:
-            out = layer(out)
-            skip_connections.append(out)
-            out = out[:, :, ::2]
-
+        out = self.encoder(out)
         out = self.middle(out)
-
-        # Down Sampling
-        for i, layer in enumerate(self.decoder):
-            # [batch_size, T * 2, channels]
-            out = F.interpolate(
-                out, scale_factor=2.0, mode="linear", align_corners=True
-            )
-            # Skip Connection
-            out = torch.cat([out, skip_connections[self.n_layers - i - 1]], dim=1)
-            out = layer(out)
-
-        out = torch.cat([out, inputs], dim=1)
-        out = self.out(out)
+        out = self.decoder(out)
 
         if not self.training:
             out = out.clamp(-1.0, 1.0)
-            # out = AF.highpass_biquad(out, sample_rate=24000, cutoff_freq=120.0)
 
         return out.to(torch.float32)
 
