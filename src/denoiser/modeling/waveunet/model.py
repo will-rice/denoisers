@@ -71,15 +71,11 @@ class ResidualBlock(nn.Module):
             stride=stride,
             padding=padding,
         )
-        self.attn = nn.MultiheadAttention(out_channels, num_heads=4, batch_first=True)
 
     def forward(self, x):
         residual = self.residual_conv(x)
         x = self.conv_in(x)
         x = self.conv_out(x)
-        x = x.transpose(2, 1)
-        x = self.attn(x, x, x)[0]
-        x = x.transpose(2, 1)
         x += residual
         return x
 
@@ -128,10 +124,6 @@ class Upsample1D(nn.Module):
         else:
             self.conv = nn.Conv1d(self.in_channels, self.out_channels, 3, padding=1)
 
-        self.cross_attn = nn.MultiheadAttention(
-            self.out_channels, num_heads=4, batch_first=True
-        )
-
     def forward(self, x, skip):
         assert x.shape[1] == self.in_channels
         if self.use_conv_transpose:
@@ -139,9 +131,6 @@ class Upsample1D(nn.Module):
 
         x = F.interpolate(x, scale_factor=2.0, mode="nearest")
         x = self.conv(x)
-        x = self.cross_attn(
-            x.transpose(2, 1), skip.transpose(2, 1), skip.transpose(2, 1)
-        )[0].transpose(2, 1)
 
         return x
 
