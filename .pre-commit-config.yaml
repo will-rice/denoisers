@@ -25,15 +25,15 @@ repos:
         entry: isort
         args: ["--profile", "black"]
         types: [python]
-      - id: flake8
-        name: flake8
+      - id: ruff
+        name: ruff
         language: system
-        entry: flake8
+        entry: ruff
         types: [python]
       - id: mypy
         name: mypy
         language: system
-        entry: mypy src
+        entry: mypy denoisers
         pass_filenames: false
         always_run: true
       - id: pytest

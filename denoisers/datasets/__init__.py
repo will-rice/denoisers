@@ -1,4 +1,4 @@
-"""Dataset classes for the denoiser."""
+"""Dataset classes for the denoisers."""
 from typing import NamedTuple, Union
 
 from torch import Tensor

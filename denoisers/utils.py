@@ -1,4 +1,4 @@
-"""General utilities for the denoiser."""
+"""General utilities for the denoisers."""
 from typing import Any, Optional
 
 import librosa
@@ -70,11 +70,10 @@ def plot_image_from_audio(
 
     fig, ax = plt.subplots(len(clean), 3, figsize=(20, 5 * len(clean)))
 
-    for i, (c, n, p, l) in enumerate(zip(clean, noisy, preds, lengths)):
-
-        original_spec = librosa.power_to_db(SPEC_FN(c[:l]))
-        noisy_spec = librosa.power_to_db(SPEC_FN(n[:l]))
-        pred_spec = librosa.power_to_db(SPEC_FN(p[:l]))
+    for i, (c, n, p, length) in enumerate(zip(clean, noisy, preds, lengths)):
+        original_spec = librosa.power_to_db(SPEC_FN(c[:length]))
+        noisy_spec = librosa.power_to_db(SPEC_FN(n[:length]))
+        pred_spec = librosa.power_to_db(SPEC_FN(p[:length]))
 
         ax[i][0].imshow(original_spec, origin="lower", aspect="auto")
         ax[i][0].axis("off")

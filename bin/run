@@ -4,4 +4,4 @@ set -e
 
 command=$1
 shift
-exec python -m "src.denoiser.$command" "$@"
+exec python -m "denoisers.$command" "$@"

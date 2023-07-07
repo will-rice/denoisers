@@ -6,7 +6,7 @@ from typing import Any, Optional, Tuple, Union
 import numpy as np
 import torch
 import torchaudio
-from pedalboard import Reverb
+from pedalboard import Reverb  # type: ignore
 from torch import Tensor, nn
 
 
@@ -40,7 +40,6 @@ class GaussianNoise(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-
             intensity = random.random()
             noise = torch.randn_like(x) * intensity
             x += noise
@@ -84,7 +83,6 @@ class FilterTransform(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-
             gain = self.get_gain()
             center_freq = self.get_center_freq()
 
@@ -120,7 +118,6 @@ class ClipTransform(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-
             clip_level = self.get_clip()
             x[torch.abs(x) > clip_level] = clip_level
 
@@ -186,7 +183,7 @@ class ReverbFromSoundboard(nn.Module):
 
         if random.random() < self.p:
             self.reverb.room_size = random.random()
-            x = self.reverb.process(x, self.sample_rate)  # type: ignore
+            x = self.reverb.process(x, self.sample_rate)
 
         x = torch.from_numpy(x)
 
@@ -290,7 +287,7 @@ class NoiseFromFile(nn.Module):
         self.root = root
         self.p = p
         self.sample_rate = sample_rate
-        # TODO: This should be mmaped
+        # TODO: This should be mmapped
         noise_paths = random.choices(list(root.glob("**/*.wav")), k=num_samples)
         self.noises = [torchaudio.load(noise)[0] for noise in noise_paths]
         print(f"Loaded {len(self.noises)} noises")
@@ -353,7 +350,7 @@ class FreqNoiseMask(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         stft = torch.stft(
-            x[None],
+            x,
             n_fft=2048,
             win_length=1024,
             hop_length=256,
@@ -375,7 +372,7 @@ class FreqNoiseMask(nn.Module):
             hop_length=256,
             length=x.size(-1),
         )
-        return inv_audio.squeeze()
+        return inv_audio
 
 
 class TimeNoiseMask(nn.Module):
@@ -389,7 +386,7 @@ class TimeNoiseMask(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         stft = torch.stft(
-            x[None],
+            x,
             n_fft=2048,
             win_length=1024,
             hop_length=256,
@@ -411,7 +408,7 @@ class TimeNoiseMask(nn.Module):
             hop_length=256,
             length=x.size(-1),
         )
-        return inv_audio.squeeze()
+        return inv_audio
 
 
 class FreqMask(nn.Module):
@@ -476,7 +473,7 @@ class CutOut(nn.Module):
         """
         original_size = x.size(-1)
         stft = torch.stft(
-            x[None],
+            x,
             n_fft=2048,
             win_length=1024,
             hop_length=256,
@@ -498,7 +495,7 @@ class CutOut(nn.Module):
             x1 = torch.clamp(x - self.length // 2, 0, w)
             x2 = torch.clamp(x + self.length // 2, 0, w)
 
-            mask[y1:y2, x1:x2] = 0.0  # type: ignore
+            mask[y1:y2, x1:x2] = 0.0
 
         mask = mask.expand_as(mag_stft)
         mag_stft *= mask
@@ -515,7 +512,7 @@ class CutOut(nn.Module):
             hop_length=256,
             length=original_size,
         )
-        return inv_audio.squeeze()
+        return inv_audio
 
 
 class NoiseOut(nn.Module):
@@ -546,7 +543,7 @@ class NoiseOut(nn.Module):
         """
         original_size = x.size(-1)
         stft = torch.stft(
-            x[None],
+            x,
             n_fft=2048,
             win_length=1024,
             hop_length=256,
@@ -568,9 +565,9 @@ class NoiseOut(nn.Module):
             x1 = torch.clamp(x - self.length // 2, 0, w)
             x2 = torch.clamp(x + self.length // 2, 0, w)
 
-            noise = torch.randn_like(mask[y1:y2, x1:x2])  # type: ignore
+            noise = torch.randn_like(mask[y1:y2, x1:x2])
             noise *= self.intensity
-            mask[y1:y2, x1:x2] = noise  # type: ignore
+            mask[y1:y2, x1:x2] = noise
 
         mask = mask.expand_as(mag_stft)
         mag_stft *= mask
@@ -587,7 +584,7 @@ class NoiseOut(nn.Module):
             hop_length=256,
             length=original_size,
         )
-        return inv_audio.squeeze()
+        return inv_audio
 
 
 def _get_mask_param(mask_param: int, p: float, axis_length: int) -> int:

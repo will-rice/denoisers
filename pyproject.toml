@@ -20,3 +20,6 @@ classifiers = [
 [project.urls]
 "Homepage" = "https://github.com/will-rice/denoisers"
 "Bug Tracker" = "https://github.com/will-rice/denoisers/issues"
+
+[tool.isort]
+known_first_party = ["denoisers"]

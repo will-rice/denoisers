@@ -1,0 +1,5 @@
+#!/bin/sh
+
+set -e
+
+rsync -xrzP -e 'ssh -p 4203' ./ "$1:projects/${PWD##*/}/"
