@@ -4,13 +4,12 @@ from typing import Any, Dict, Union
 
 import pytorch_lightning as pl
 import torch
-from torch import Tensor, nn
-from torch.nn import functional as F
-from torchmetrics import SignalNoiseRatio
-
 from src.denoiser import utils
 from src.denoiser.datasets import Batch
 from src.denoiser.utils import log_audio_batch, plot_image_from_audio
+from torch import Tensor, nn
+from torch.nn import functional as F
+from torchmetrics import SignalNoiseRatio
 
 
 @dataclass
@@ -169,6 +168,7 @@ class WaveUNet(pl.LightningModule):
         )
         self.loss_fn = nn.L1Loss()
         self.snr = SignalNoiseRatio()
+        self.last_val_batch = {}
 
     def forward(self, inputs: Tensor) -> Tensor:
         """Forward Pass."""
@@ -243,26 +243,23 @@ class WaveUNet(pl.LightningModule):
             {"val_loss": loss, "val_snr": snr}, batch_size=batch.audio.size(1)
         )
 
-        return {
-            "loss": loss,
+        self.last_val_batch = {
             "outputs": (
                 batch.audio.detach(),
                 batch.noisy_audio.detach(),
                 pred.detach(),
                 batch.audio_lengths.detach(),
-            ),
+            )
         }
 
-    def validation_epoch_end(self, validation_step_outputs: Any) -> None:
-        """Val epoch end."""
-        if validation_step_outputs:
-            outputs = validation_step_outputs[-1]["outputs"]
-            audio, noisy, preds, lengths = outputs
-            log_audio_batch(audio, noisy, preds, lengths, name="val")
-            plot_image_from_audio(audio, noisy, preds, lengths, "val")
+        return loss
 
     def on_validation_epoch_end(self) -> None:
         """Val epoch end."""
+        outputs = self.last_val_batch["outputs"]
+        audio, noisy, preds, lengths = outputs
+        log_audio_batch(audio, noisy, preds, lengths, name="val")
+        plot_image_from_audio(audio, noisy, preds, lengths, "val")
         self.snr.reset()
 
     def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:

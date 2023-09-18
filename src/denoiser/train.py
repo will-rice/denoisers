@@ -5,9 +5,13 @@ from pathlib import Path
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning import loggers
-
 from src.denoiser.data import AudioFromFileDataModule
 from src.denoiser.modeling.waveunet.model import WaveUNet
+
+if torch.cuda.is_available():
+    torch.backends.cudnn.benchmark = True
+    torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cuda.matmul.allow_tf32 = True
 
 
 def main() -> None:
@@ -60,9 +64,8 @@ def main() -> None:
         accelerator="auto",
         devices=args.num_devices,
         logger=logger,
-        precision=16 if torch.cuda.is_available() else 32,
-        callbacks=[checkpoint_callback, swa_callback, lr_monitor],
-        track_grad_norm=True,
+        precision="16-mixed",
+        callbacks=[checkpoint_callback, lr_monitor],
     )
 
     trainer.fit(
