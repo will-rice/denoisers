@@ -5,7 +5,6 @@ from pathlib import Path
 import pytorch_lightning as pl
 import torch
 from pytorch_lightning import loggers
-
 from src.denoiser.data import AudioFromFileDataModule
 from src.denoiser.modeling.waveunet.model import WaveUNet
 
