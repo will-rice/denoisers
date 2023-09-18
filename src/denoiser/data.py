@@ -7,13 +7,12 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from torch import Tensor
-from torch.nn import functional as F
-from torch.utils.data import DataLoader
-
 from src.denoiser import transforms
 from src.denoiser.datasets import Batch
 from src.denoiser.datasets.vctk import VCTKDataset
+from torch import Tensor
+from torch.nn import functional as F
+from torch.utils.data import DataLoader
 
 MAX_LENGTH = 16384 * 10
 
