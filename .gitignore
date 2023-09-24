@@ -131,7 +131,6 @@ dmypy.json
 # Some extras
 wandb/
 logs/
-data/
 
 # ruff
 .ruff_cache/
