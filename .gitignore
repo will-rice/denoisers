@@ -132,3 +132,6 @@ dmypy.json
 wandb/
 logs/
 data/
+
+# ruff
+.ruff_cache/
