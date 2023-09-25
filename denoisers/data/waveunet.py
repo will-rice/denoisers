@@ -1,5 +1,6 @@
 """WaveUnet Data modules."""
 import os
+from pathlib import Path
 from typing import List, NamedTuple, Optional
 
 import numpy as np
@@ -48,8 +49,18 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._win_length = win_length
         self._hop_length = hop_length
         self._transforms = nn.Sequential(
-            transforms.ReverbFromSoundboard(p=0.97),
+            transforms.ReverbFromSoundboard(p=1.0),
             transforms.GaussianNoise(p=1.0),
+            transforms.VolTransform(),
+            transforms.FilterTransform(),
+            transforms.ClipTransform(),
+            # transforms.BreakTransform(),
+            transforms.SpecTransform(),
+            transforms.FreqNoiseMask(100, p=0.5),
+            transforms.TimeNoiseMask(100, p=0.5),
+            transforms.NoiseOut(20, 5),
+            transforms.CutOut(20, 5),
+            transforms.NoiseFromFile(Path("/data-fast/bbc-sounds")),
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
