@@ -38,7 +38,13 @@ class Upsample1D(nn.Module):
 
         self.conv: Any = None
         if use_conv_transpose:
-            self.conv = nn.ConvTranspose1d(in_channels, self.out_channels, 4, 2, 1)
+            self.conv = nn.ConvTranspose1d(
+                in_channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                stride=2,
+                padding=padding,
+            )
         elif use_conv:
             self.conv = nn.Conv1d(
                 self.channels,
@@ -172,7 +178,7 @@ class Activation(nn.Module):
         elif name == "relu":
             self.activation = nn.ReLU(inplace=True)
         elif name == "leaky_relu":
-            self.activation = nn.LeakyReLU(0.1, inplace=True)
+            self.activation = nn.LeakyReLU(0.2, inplace=True)
         else:
             raise ValueError(f"{name} activation is not supported.")
 

@@ -10,7 +10,7 @@ class AudioDataset(Dataset):
     def __init__(self, root: Path) -> None:
         super().__init__()
         self._root = root
-        self._samples = list(self._root.glob("**/*.flac"))
+        self._samples = list(self._root.glob("**/*.wav"))
 
     def __len__(self) -> int:
         """Return length of dataset."""
