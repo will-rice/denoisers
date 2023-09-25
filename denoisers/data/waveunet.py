@@ -7,11 +7,10 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from torch import Tensor, nn
+from torch import Tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
 from torch_audiomentations import (
-    AddBackgroundNoise,
     AddColoredNoise,
     BandPassFilter,
     BandStopFilter,
@@ -25,8 +24,6 @@ from torch_audiomentations import (
     Shift,
     TimeInversion,
 )
-
-from denoisers import transforms
 
 
 class Batch(NamedTuple):
@@ -46,7 +43,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         batch_size: int = 24,
         num_workers: int = os.cpu_count() // 2,  # type: ignore
         max_length: int = 10,
-        sample_rate: int = 24000,
+        sample_rate: int = 48000,
         n_fft: int = 2048,
         win_length: int = 1024,
         hop_length: int = 256,
@@ -72,7 +69,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 HighPassFilter(),
                 LowPassFilter(),
                 PeakNormalization(),
-                PitchShift(),
+                PitchShift(sample_rate=self._sample_rate),
                 PolarityInversion(),
                 Shift(),
                 TimeInversion(),
@@ -113,7 +110,9 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             else:
                 audio = audio[:, : self._max_length]
 
-            noisy = self._transforms(audio.clone(), sample_rate=self._sample_rate)
+            noisy = self._transforms(
+                audio.clone()[None], sample_rate=self._sample_rate
+            ).squeeze(0)
 
             audios.append(audio)
             noisy_audio.append(noisy)
