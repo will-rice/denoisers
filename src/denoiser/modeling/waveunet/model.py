@@ -5,13 +5,12 @@ from typing import Any, Dict, List, Union
 import pytorch_lightning as pl
 import torch
 import torchaudio.functional as AF
-from torch import Tensor, nn
-from torch.nn import functional as F
-from torchmetrics import SignalNoiseRatio
-
 from src.denoiser import utils
 from src.denoiser.datasets import Batch
 from src.denoiser.utils import log_audio_batch, plot_image_from_audio
+from torch import Tensor, nn
+from torch.nn import functional as F
+from torchmetrics import SignalNoiseRatio
 
 
 @dataclass

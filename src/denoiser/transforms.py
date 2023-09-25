@@ -41,7 +41,6 @@ class GaussianNoise(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-
             intensity = random.random()
             noise = torch.randn_like(x) * intensity
             x += noise
@@ -80,7 +79,6 @@ class FilterTransform(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-
             gain = self.get_gain()
             center_freq = self.get_center_freq()
 
@@ -110,7 +108,6 @@ class ClipTransform(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-
             clip_level = self.get_clip()
             x[torch.abs(x) > clip_level] = clip_level
 
@@ -308,7 +305,6 @@ class FreqNoiseMask(nn.Module):
         self.p = p
 
     def forward(self, x: Tensor) -> Tensor:
-
         stft = torch.stft(
             x[None],
             n_fft=2048,
@@ -342,7 +338,6 @@ class TimeNoiseMask(nn.Module):
         self.p = p
 
     def forward(self, x: Tensor) -> Tensor:
-
         stft = torch.stft(
             x[None],
             n_fft=2048,
