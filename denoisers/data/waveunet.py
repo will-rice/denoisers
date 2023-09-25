@@ -54,7 +54,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             transforms.VolTransform(),
             transforms.FilterTransform(),
             transforms.ClipTransform(),
-            # transforms.BreakTransform(),
+            transforms.BreakTransform(),
             transforms.SpecTransform(),
             transforms.FreqNoiseMask(100, p=0.5),
             transforms.TimeNoiseMask(100, p=0.5),
