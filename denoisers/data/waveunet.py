@@ -25,6 +25,8 @@ from torch_audiomentations import (
     TimeInversion,
 )
 
+from denoisers import transforms
+
 
 class Batch(NamedTuple):
     """Batch of inputs."""
@@ -62,6 +64,8 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._hop_length = hop_length
         self._transforms = Compose(
             transforms=[
+                transforms.ReverbFromSoundboard(p=1.0),
+                transforms.GaussianNoise(p=1.0),
                 AddColoredNoise(),
                 BandPassFilter(),
                 BandStopFilter(),
