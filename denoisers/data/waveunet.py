@@ -10,6 +10,21 @@ import torchaudio
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
+from torch_audiomentations import (
+    AddBackgroundNoise,
+    AddColoredNoise,
+    BandPassFilter,
+    BandStopFilter,
+    Compose,
+    Gain,
+    HighPassFilter,
+    LowPassFilter,
+    PeakNormalization,
+    PitchShift,
+    PolarityInversion,
+    Shift,
+    TimeInversion,
+)
 
 from denoisers import transforms
 
@@ -48,14 +63,20 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._n_fft = n_fft
         self._win_length = win_length
         self._hop_length = hop_length
-        self._transforms = nn.Sequential(
-            transforms.ReverbFromSoundboard(p=1.0),
-            transforms.GaussianNoise(p=1.0),
-            transforms.VolTransform(),
-            transforms.FilterTransform(),
-            transforms.ClipTransform(),
-            # transforms.BreakTransform(),
-            transforms.NoiseFromFile(Path("/data-fast/bbc-sounds")),
+        self._transforms = Compose(
+            transforms=[
+                AddColoredNoise(),
+                BandPassFilter(),
+                BandStopFilter(),
+                Gain(),
+                HighPassFilter(),
+                LowPassFilter(),
+                PeakNormalization(),
+                PitchShift(),
+                PolarityInversion(),
+                Shift(),
+                TimeInversion(),
+            ]
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
