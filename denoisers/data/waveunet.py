@@ -46,7 +46,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         batch_size: int = 24,
         num_workers: int = os.cpu_count() // 2,  # type: ignore
         max_length: int = 10,
-        sample_rate: int = 24000,
+        sample_rate: int = 48000,
         n_fft: int = 2048,
         win_length: int = 1024,
         hop_length: int = 256,
@@ -113,7 +113,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             else:
                 audio = audio[:, : self._max_length]
 
-            noisy = self._transforms(audio.clone())
+            noisy = self._transforms(audio.clone(), sample_rate=self._sample_rate)
 
             audios.append(audio)
             noisy_audio.append(noisy)
