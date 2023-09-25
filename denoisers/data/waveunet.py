@@ -51,11 +51,6 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._transforms = nn.Sequential(
             transforms.ReverbFromSoundboard(p=1.0),
             transforms.GaussianNoise(p=1.0),
-            transforms.VolTransform(),
-            transforms.FilterTransform(),
-            transforms.ClipTransform(),
-            transforms.BreakTransform(),
-            transforms.SpecTransform(),
             transforms.NoiseFromFile(Path("/data-fast/bbc-sounds")),
         )
 
