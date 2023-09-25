@@ -54,7 +54,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             transforms.VolTransform(),
             transforms.FilterTransform(),
             transforms.ClipTransform(),
-            transforms.BreakTransform(),
+            # transforms.BreakTransform(),
             transforms.NoiseFromFile(Path("/data-fast/bbc-sounds")),
         )
 
