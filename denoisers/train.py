@@ -8,7 +8,7 @@ from pytorch_lightning import loggers
 
 from denoisers.data.waveunet import AudioFromFileDataModule
 from denoisers.datasets.audio import AudioDataset
-from denoisers.modeling.waveunet.model import WaveUNet
+from denoisers.modeling.waveunet.model import WaveUNetLightningModule
 
 if torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
@@ -33,12 +33,12 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # pl.seed_everything(args.seed)
+    pl.seed_everything(args.seed)
 
     log_path = args.log_path / args.name
     log_path.mkdir(exist_ok=True, parents=True)
 
-    model = WaveUNet()
+    model = WaveUNetLightningModule()
 
     dataset = AudioDataset(args.data_path)
     datamodule = AudioFromFileDataModule(dataset, batch_size=args.batch_size)
@@ -64,7 +64,7 @@ def main() -> None:
         default_root_dir=log_path,
         max_epochs=1000,
         accelerator="auto",
-        val_check_interval=5000,
+        val_check_interval=0.5,
         devices=args.num_devices,
         logger=logger,
         precision="16-mixed",

@@ -1,5 +1,5 @@
 """Wave UNet Model."""
-from typing import Any, Dict, Tuple, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 import pytorch_lightning as pl
 import torch
@@ -7,23 +7,25 @@ from pytorch_lightning.utilities import grad_norm
 from pytorch_lightning.utilities.memory import garbage_collection_cuda
 from torch import Tensor, nn
 from torchmetrics.audio import SignalNoiseRatio
+from transformers import PreTrainedModel
 
-from denoisers import utils
 from denoisers.data.waveunet import Batch
-from denoisers.modeling.modules import Activation, Downsample1D, Upsample1D
+from denoisers.modeling.modules import Activation, DownsampleBlock1D, UpsampleBlock1D
+from denoisers.modeling.waveunet.config import WaveUNetConfig
 from denoisers.utils import log_audio_batch, plot_image_from_audio
 
 
-class WaveUNet(pl.LightningModule):
+class WaveUNetLightningModule(pl.LightningModule):
     """WaveUNet Model."""
 
-    def __init__(self, autoencoder: bool = False) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self.save_hyperparameters()
-        self.model = WaveUNetModel()
+        self.config = WaveUNetConfig()
+        self.model = WaveUNetModel(self.config)
         self.loss_fn = nn.L1Loss()
         self.snr = SignalNoiseRatio()
-        self.autoencoder = autoencoder
+        self.autoencoder = self.config.autoencoder
         self.last_val_batch: Any = {}
 
     def forward(self, inputs: Tensor) -> Tensor:
@@ -34,16 +36,14 @@ class WaveUNet(pl.LightningModule):
         self, batch: Batch, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Train step."""
-        masks = utils.sequence_mask(batch.lengths, batch.noisy.size(-1))
-        logits = self(batch.noisy)
-        logits = logits.masked_fill(~masks, 0.0)
+        outputs = self(batch.noisy)
 
         if self.autoencoder:
-            loss = self.loss_fn(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
+            loss = self.loss_fn(outputs.logits, batch.audio)
+            snr = self.snr(outputs.logits, batch.audio)
         else:
-            loss = self.loss_fn(logits, batch.noisy - batch.audio)
-            snr = self.snr(batch.noisy - logits, batch.audio)
+            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
+            snr = self.snr(outputs.logits, batch.audio)
 
         self.log("train_loss", loss, prog_bar=True)
         self.log("train_snr", snr)
@@ -54,18 +54,16 @@ class WaveUNet(pl.LightningModule):
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, Dict[str, Any]]:
         """Val step."""
-        masks = utils.sequence_mask(batch.lengths, batch.noisy.size(-1))
-        logits = self(batch.noisy)
-        logits = logits.masked_fill(~masks, 0.0)
+        outputs = self(batch.noisy)
 
         if self.autoencoder:
-            loss = self.loss_fn(logits, batch.audio)
-            snr = self.snr(logits, batch.audio)
-            pred = logits
+            loss = self.loss_fn(outputs.logits, batch.audio)
+            snr = self.snr(outputs.logits, batch.audio)
+            pred = outputs.logits
         else:
-            loss = self.loss_fn(logits, batch.noisy - batch.audio)
-            snr = self.snr(batch.noisy - logits, batch.audio)
-            pred = batch.noisy - logits
+            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
+            snr = self.snr(outputs.logits, batch.audio)
+            pred = outputs.logits
 
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_snr", snr)
@@ -89,8 +87,9 @@ class WaveUNet(pl.LightningModule):
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
         self.snr.reset()
 
-        trace = torch.jit.trace(self.model, torch.randn(1, 1, 16384 * 10).cuda())
-        torch.jit.save(trace, self.trainer.default_root_dir + "/waveunet.pt")
+        model_name = self.trainer.default_root_dir.split("/")[-1]
+        self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
+        self.model.push_to_hub(model_name)
 
         garbage_collection_cuda()
 
@@ -107,7 +106,36 @@ class WaveUNet(pl.LightningModule):
         return optimizer
 
 
-class WaveUNetModel(nn.Module):
+class WaveUNetModelOutputs:
+    """Class for holding model outputs."""
+
+    def __init__(self, logits: Tensor, noise: Optional[Tensor] = None) -> None:
+        self.logits = logits
+        self.noise = noise
+
+
+class WaveUNetModel(PreTrainedModel):
+    """Pretrained WaveUNet Model."""
+
+    def __init__(self, config: WaveUNetConfig):
+        super().__init__(config)
+        self.config = config
+        self.model = WaveUNet(
+            config.in_channels, config.kernel_size, config.dropout, config.activation
+        )
+
+    def forward(self, inputs: Tensor) -> WaveUNetModelOutputs:
+        """Forward Pass."""
+        if self.config.autoencoder:
+            logits = self.model(inputs)
+            return WaveUNetModelOutputs(logits=logits)
+        else:
+            noise = self.model(inputs)
+            denoised = inputs - noise
+            return WaveUNetModelOutputs(logits=denoised, noise=noise)
+
+
+class WaveUNet(nn.Module):
     """WaveUNet Model."""
 
     def __init__(
@@ -192,71 +220,4 @@ class WaveUNetModel(nn.Module):
         out = torch.concat([out, inputs], dim=1)
         out = self.out_conv(out)
 
-        return out.to(torch.float32)
-
-
-class DownsampleBlock1D(nn.Module):
-    """1d downsample block."""
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 2,
-        dropout: float = 0.0,
-        activation: str = "leaky_relu",
-    ) -> None:
-        super().__init__()
-
-        self.downsample = Downsample1D(
-            in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            use_conv=True,
-            padding=kernel_size // 2,
-        )
-        self.batch_norm = nn.BatchNorm1d(out_channels)
-        self.activation = Activation(activation)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass."""
-        x = self.downsample(x)
-        x = self.batch_norm(x)
-        x = self.activation(x)
-        x = self.dropout(x)
-        return x
-
-
-class UpsampleBlock1D(nn.Module):
-    """1d upsample block."""
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        dropout: float = 0.0,
-        activation: str = "leaky_relu",
-    ) -> None:
-        super().__init__()
-        self.upsample = Upsample1D(
-            in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            use_conv=True,
-            padding=kernel_size // 2,
-        )
-        self.batch_norm = nn.BatchNorm1d(out_channels)
-        self.activation = Activation(activation)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass."""
-        x = self.upsample(x)
-        x = self.batch_norm(x)
-        x = self.activation(x)
-        x = self.dropout(x)
-        return x
+        return out.float()
