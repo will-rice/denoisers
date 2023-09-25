@@ -183,9 +183,9 @@ class ReverbFromSoundboard(nn.Module):
 
         if random.random() < self.p:
             self.reverb.room_size = random.random()
-            x = self.reverb.process(x, self.sample_rate)
+            x = self.reverb.process(x.squeeze(0), self.sample_rate)
 
-        x = torch.from_numpy(x)
+        x = torch.from_numpy(x).unsqueeze(0)
 
         return x
 

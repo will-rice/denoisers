@@ -64,7 +64,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._hop_length = hop_length
         self._transforms = Compose(
             transforms=[
-                transforms.ReverbFromSoundboard(p=1.0),
+                transforms.ReverbFromSoundboard(sample_rate=self._sample_rate, p=1.0),
                 transforms.GaussianNoise(p=1.0),
                 AddColoredNoise(),
                 BandPassFilter(),
