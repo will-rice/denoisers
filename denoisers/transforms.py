@@ -183,9 +183,9 @@ class ReverbFromSoundboard(nn.Module):
 
         if random.random() < self.p:
             self.reverb.room_size = random.random()
-            x = self.reverb.process(x.squeeze(0), self.sample_rate)
+            x = self.reverb.process(x, self.sample_rate)
 
-        x = torch.from_numpy(x).unsqueeze(0)
+        x = torch.from_numpy(x)
 
         return x
 
@@ -288,7 +288,7 @@ class NoiseFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         # TODO: This should be mmapped
-        noise_paths = random.choices(list(root.glob("**/*.flac")), k=num_samples)
+        noise_paths = random.choices(list(root.glob("**/*.wav")), k=num_samples)
         self.noises = [torchaudio.load(noise)[0] for noise in noise_paths]
         print(f"Loaded {len(self.noises)} noises")
 

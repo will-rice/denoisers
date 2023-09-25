@@ -64,7 +64,7 @@ def main() -> None:
         default_root_dir=log_path,
         max_epochs=1000,
         accelerator="auto",
-        val_check_interval=0.5,
+        val_check_interval=5000,
         devices=args.num_devices,
         logger=logger,
         precision="16-mixed",

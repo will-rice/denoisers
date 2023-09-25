@@ -7,23 +7,9 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from torch import Tensor
+from torch import Tensor, nn
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-from torch_audiomentations import (
-    AddColoredNoise,
-    BandPassFilter,
-    BandStopFilter,
-    Compose,
-    Gain,
-    HighPassFilter,
-    LowPassFilter,
-    PeakNormalization,
-    PitchShift,
-    PolarityInversion,
-    Shift,
-    TimeInversion,
-)
 
 from denoisers import transforms
 
@@ -45,7 +31,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         batch_size: int = 24,
         num_workers: int = os.cpu_count() // 2,  # type: ignore
         max_length: int = 10,
-        sample_rate: int = 48000,
+        sample_rate: int = 24000,
         n_fft: int = 2048,
         win_length: int = 1024,
         hop_length: int = 256,
@@ -62,22 +48,15 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._n_fft = n_fft
         self._win_length = win_length
         self._hop_length = hop_length
-        self._transforms = Compose(
-            transforms=[
-                transforms.ReverbFromSoundboard(sample_rate=self._sample_rate, p=1.0),
-                transforms.GaussianNoise(p=1.0),
-                AddColoredNoise(),
-                BandPassFilter(),
-                BandStopFilter(),
-                Gain(),
-                HighPassFilter(),
-                LowPassFilter(),
-                PeakNormalization(),
-                PitchShift(sample_rate=self._sample_rate),
-                PolarityInversion(),
-                Shift(),
-                TimeInversion(),
-            ]
+        self._transforms = nn.Sequential(
+            transforms.ReverbFromSoundboard(p=1.0),
+            transforms.GaussianNoise(p=1.0),
+            transforms.VolTransform(),
+            transforms.FilterTransform(),
+            transforms.ClipTransform(),
+            transforms.BreakTransform(),
+            transforms.SpecTransform(),
+            transforms.NoiseFromFile(Path("/data-fast/bbc-sounds")),
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
@@ -114,9 +93,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             else:
                 audio = audio[:, : self._max_length]
 
-            noisy = self._transforms(
-                audio.clone()[None], sample_rate=self._sample_rate
-            ).squeeze(0)
+            noisy = self._transforms(audio.clone())
 
             audios.append(audio)
             noisy_audio.append(noisy)
