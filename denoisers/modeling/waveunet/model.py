@@ -36,7 +36,7 @@ class WaveUNet(pl.LightningModule):
         """Train step."""
         masks = utils.sequence_mask(batch.lengths, batch.noisy.size(-1))
         logits = self(batch.noisy)
-        logits = logits.masked_fill(~masks, 0.0)
+        # logits = logits.masked_fill(~masks, 0.0)
 
         if self.autoencoder:
             loss = self.loss_fn(logits, batch.audio)
@@ -56,7 +56,7 @@ class WaveUNet(pl.LightningModule):
         """Val step."""
         masks = utils.sequence_mask(batch.lengths, batch.noisy.size(-1))
         logits = self(batch.noisy)
-        logits = logits.masked_fill(~masks, 0.0)
+        # logits = logits.masked_fill(~masks, 0.0)
 
         if self.autoencoder:
             loss = self.loss_fn(logits, batch.audio)
