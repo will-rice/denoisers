@@ -8,7 +8,6 @@ from pytorch_lightning.utilities.memory import garbage_collection_cuda
 from torch import Tensor, nn
 from torchmetrics.audio import SignalNoiseRatio
 
-from denoisers import utils
 from denoisers.data.waveunet import Batch
 from denoisers.modeling.modules import Activation, Downsample1D, Upsample1D
 from denoisers.utils import log_audio_batch, plot_image_from_audio
