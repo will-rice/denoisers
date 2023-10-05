@@ -29,6 +29,7 @@ class WaveUNetConfig(PretrainedConfig):
         dropout: float = 0.0,
         activation: str = "leaky_relu",
         autoencoder: bool = False,
+        sample_rate: int = 48000,
         **kwargs: Any,
     ) -> None:
         self.in_channels = in_channels
@@ -36,4 +37,5 @@ class WaveUNetConfig(PretrainedConfig):
         self.dropout = dropout
         self.activation = activation
         self.autoencoder = autoencoder
+        self.sample_rate = sample_rate
         super().__init__(**kwargs)

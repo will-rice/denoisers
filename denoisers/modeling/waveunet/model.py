@@ -6,10 +6,11 @@ import torch
 from pytorch_lightning.utilities import grad_norm
 from pytorch_lightning.utilities.memory import garbage_collection_cuda
 from torch import Tensor, nn
-from torchmetrics.audio import SignalNoiseRatio
+from torchmetrics.audio import SignalDistortionRatio, SignalNoiseRatio
 from transformers import PreTrainedModel
 
 from denoisers.data.waveunet import Batch
+from denoisers.metrics import calculate_pesq
 from denoisers.modeling.modules import Activation, DownsampleBlock1D, UpsampleBlock1D
 from denoisers.modeling.waveunet.config import WaveUNetConfig
 from denoisers.utils import log_audio_batch, plot_image_from_audio
@@ -25,6 +26,7 @@ class WaveUNetLightningModule(pl.LightningModule):
         self.model = WaveUNetModel(self.config)
         self.loss_fn = nn.L1Loss()
         self.snr = SignalNoiseRatio()
+        self.sdr = SignalDistortionRatio()
         self.autoencoder = self.config.autoencoder
         self.last_val_batch: Any = {}
 
@@ -40,13 +42,15 @@ class WaveUNetLightningModule(pl.LightningModule):
 
         if self.autoencoder:
             loss = self.loss_fn(outputs.logits, batch.audio)
-            snr = self.snr(outputs.logits, batch.audio)
         else:
             loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-            snr = self.snr(outputs.logits, batch.audio)
+
+        snr = self.snr(outputs.logits, batch.audio)
+        sdr = self.sdr(outputs.logits, batch.audio)
 
         self.log("train_loss", loss, prog_bar=True)
         self.log("train_snr", snr)
+        self.log("train_sdr", sdr)
 
         return loss
 
@@ -58,21 +62,23 @@ class WaveUNetLightningModule(pl.LightningModule):
 
         if self.autoencoder:
             loss = self.loss_fn(outputs.logits, batch.audio)
-            snr = self.snr(outputs.logits, batch.audio)
-            pred = outputs.logits
         else:
             loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-            snr = self.snr(outputs.logits, batch.audio)
-            pred = outputs.logits
+
+        snr = self.snr(outputs.logits, batch.audio)
+        sdr = self.sdr(outputs.logits, batch.audio)
+        pesq = calculate_pesq(outputs.logits, batch.audio, self.config.sample_rate)
 
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_snr", snr)
+        self.log("val_sdr", sdr)
+        self.log("pesq", pesq)
 
         self.last_val_batch = {
             "outputs": (
                 batch.audio.detach(),
                 batch.noisy.detach(),
-                pred.detach(),
+                outputs.logits.detach(),
                 batch.lengths.detach(),
             )
         }
@@ -86,6 +92,7 @@ class WaveUNetLightningModule(pl.LightningModule):
         log_audio_batch(audio, noisy, preds, lengths, name="val")
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
         self.snr.reset()
+        self.sdr.reset()
 
         model_name = self.trainer.default_root_dir.split("/")[-1]
         self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
