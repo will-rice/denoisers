@@ -1,30 +1,35 @@
 """Wave UNet Model."""
 from typing import Any, Dict, Optional, Tuple, Union
 
-import pytorch_lightning as pl
 import torch
+from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities import grad_norm
 from pytorch_lightning.utilities.memory import garbage_collection_cuda
 from torch import Tensor, nn
-from torchmetrics.audio import SignalNoiseRatio
+from torchmetrics.audio import (
+    ScaleInvariantSignalDistortionRatio,
+    ScaleInvariantSignalNoiseRatio,
+)
 from transformers import PreTrainedModel
 
 from denoisers.data.waveunet import Batch
+from denoisers.metrics import calculate_pesq
 from denoisers.modeling.modules import Activation, DownsampleBlock1D, UpsampleBlock1D
 from denoisers.modeling.waveunet.config import WaveUNetConfig
 from denoisers.utils import log_audio_batch, plot_image_from_audio
 
 
-class WaveUNetLightningModule(pl.LightningModule):
+class WaveUNetLightningModule(LightningModule):
     """WaveUNet Model."""
 
-    def __init__(self) -> None:
+    def __init__(self, config: WaveUNetConfig) -> None:
         super().__init__()
         self.save_hyperparameters()
-        self.config = WaveUNetConfig()
+        self.config = config
         self.model = WaveUNetModel(self.config)
         self.loss_fn = nn.L1Loss()
-        self.snr = SignalNoiseRatio()
+        self.snr = ScaleInvariantSignalNoiseRatio()
+        self.sdr = ScaleInvariantSignalDistortionRatio()
         self.autoencoder = self.config.autoencoder
         self.last_val_batch: Any = {}
 
@@ -40,13 +45,15 @@ class WaveUNetLightningModule(pl.LightningModule):
 
         if self.autoencoder:
             loss = self.loss_fn(outputs.logits, batch.audio)
-            snr = self.snr(outputs.logits, batch.audio)
         else:
             loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-            snr = self.snr(outputs.logits, batch.audio)
+
+        snr = self.snr(outputs.logits, batch.audio)
+        sdr = self.sdr(outputs.logits, batch.audio)
 
         self.log("train_loss", loss, prog_bar=True)
         self.log("train_snr", snr)
+        self.log("train_sdr", sdr)
 
         return loss
 
@@ -58,21 +65,23 @@ class WaveUNetLightningModule(pl.LightningModule):
 
         if self.autoencoder:
             loss = self.loss_fn(outputs.logits, batch.audio)
-            snr = self.snr(outputs.logits, batch.audio)
-            pred = outputs.logits
         else:
             loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-            snr = self.snr(outputs.logits, batch.audio)
-            pred = outputs.logits
+
+        snr = self.snr(outputs.logits, batch.audio)
+        sdr = self.sdr(outputs.logits, batch.audio)
+        pesq = calculate_pesq(outputs.logits, batch.audio, self.config.sample_rate)
 
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_snr", snr)
+        self.log("val_sdr", sdr)
+        self.log("pesq", pesq)
 
         self.last_val_batch = {
             "outputs": (
                 batch.audio.detach(),
                 batch.noisy.detach(),
-                pred.detach(),
+                outputs.logits.detach(),
                 batch.lengths.detach(),
             )
         }
@@ -83,9 +92,17 @@ class WaveUNetLightningModule(pl.LightningModule):
         """Val epoch end."""
         outputs = self.last_val_batch["outputs"]
         audio, noisy, preds, lengths = outputs
-        log_audio_batch(audio, noisy, preds, lengths, name="val")
+        log_audio_batch(
+            audio,
+            noisy,
+            preds,
+            lengths,
+            name="val",
+            sample_rate=self.config.sample_rate,
+        )
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
         self.snr.reset()
+        self.sdr.reset()
 
         model_name = self.trainer.default_root_dir.split("/")[-1]
         self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
@@ -121,7 +138,11 @@ class WaveUNetModel(PreTrainedModel):
         super().__init__(config)
         self.config = config
         self.model = WaveUNet(
-            config.in_channels, config.kernel_size, config.dropout, config.activation
+            in_channels=config.in_channels,
+            downsample_kernel_size=config.downsample_kernel_size,
+            upsample_kernel_size=config.upsample_kernel_size,
+            dropout=config.dropout,
+            activation=config.activation,
         )
 
     def forward(self, inputs: Tensor) -> WaveUNetModelOutputs:
@@ -154,20 +175,24 @@ class WaveUNet(nn.Module):
             264,
             288,
         ),
-        kernel_size: int = 15,
+        downsample_kernel_size: int = 15,
+        upsample_kernel_size: int = 5,
         dropout: float = 0.0,
         activation: str = "leaky_relu",
     ) -> None:
         super().__init__()
         self.in_conv = nn.Conv1d(
-            1, in_channels[0], kernel_size=kernel_size, padding=kernel_size // 2
+            1,
+            in_channels[0],
+            kernel_size=downsample_kernel_size,
+            padding=downsample_kernel_size // 2,
         )
         self.encoder_layers = nn.ModuleList(
             [
                 DownsampleBlock1D(
                     in_channels[i],
                     out_channels=in_channels[i + 1],
-                    kernel_size=kernel_size,
+                    kernel_size=downsample_kernel_size,
                     dropout=dropout,
                     activation=activation,
                 )
@@ -178,8 +203,8 @@ class WaveUNet(nn.Module):
             nn.Conv1d(
                 in_channels[-1],
                 in_channels[-1],
-                kernel_size=kernel_size,
-                padding=kernel_size // 2,
+                kernel_size=downsample_kernel_size,
+                padding=downsample_kernel_size // 2,
             ),
             nn.BatchNorm1d(in_channels[-1]),
             Activation(activation),
@@ -190,7 +215,7 @@ class WaveUNet(nn.Module):
                 UpsampleBlock1D(
                     2 * in_channels[i + 1],
                     out_channels=in_channels[i],
-                    kernel_size=kernel_size,
+                    kernel_size=upsample_kernel_size,
                     dropout=dropout,
                     activation=activation,
                 )

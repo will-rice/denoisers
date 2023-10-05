@@ -8,6 +8,7 @@ from pytorch_lightning import loggers
 
 from denoisers.data.waveunet import AudioFromFileDataModule
 from denoisers.datasets.audio import AudioDataset
+from denoisers.modeling.waveunet.config import WaveUNetConfig
 from denoisers.modeling.waveunet.model import WaveUNetLightningModule
 
 if torch.cuda.is_available():
@@ -38,10 +39,16 @@ def main() -> None:
     log_path = args.log_path / args.name
     log_path.mkdir(exist_ok=True, parents=True)
 
-    model = WaveUNetLightningModule()
+    config = WaveUNetConfig()
+    model = WaveUNetLightningModule(config)
 
     dataset = AudioDataset(args.data_path)
-    datamodule = AudioFromFileDataModule(dataset, batch_size=args.batch_size)
+    datamodule = AudioFromFileDataModule(
+        dataset,
+        batch_size=args.batch_size,
+        max_length=config.max_length,
+        sample_rate=config.sample_rate,
+    )
 
     logger = loggers.WandbLogger(
         project=args.project,
