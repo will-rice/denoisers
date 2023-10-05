@@ -1,6 +1,7 @@
 """General utilities for the denoisers."""
 from typing import Any, Optional
 
+import librosa
 import matplotlib.pyplot as plt
 import torch
 import torchaudio.transforms as T
