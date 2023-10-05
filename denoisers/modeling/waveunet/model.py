@@ -88,7 +88,7 @@ class WaveUNetLightningModule(pl.LightningModule):
         self.snr.reset()
 
         model_name = self.trainer.default_root_dir.split("/")[-1]
-        self.model.save_pretrained(self.trainer.default_root_dir + model_name)
+        self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
         self.model.push_to_hub(model_name)
 
         garbage_collection_cuda()
