@@ -18,4 +18,4 @@ def calculate_pesq(pred: Tensor, true: Tensor, sample_rate: int = 24000) -> Tens
     except cypesq.NoUtterancesError:
         pesq = torch.tensor(0.0)
 
-    return pesq
+    return pesq.mean()
