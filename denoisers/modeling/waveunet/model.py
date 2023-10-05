@@ -87,7 +87,7 @@ class WaveUNetLightningModule(pl.LightningModule):
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
         self.snr.reset()
 
-        model_name = self.default_root_dir.split("/")[-1]
+        model_name = self.trainer.default_root_dir.split("/")[-1]
         self.model.save_pretrained(self.trainer.default_root_dir + model_name)
         self.model.push_to_hub(model_name)
 
