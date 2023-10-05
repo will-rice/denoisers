@@ -1,7 +1,6 @@
 """General utilities for the denoisers."""
 from typing import Any, Optional
 
-import librosa
 import matplotlib.pyplot as plt
 import torch
 import torchaudio.transforms as T
@@ -15,6 +14,7 @@ SPEC_FN = T.Spectrogram(
     pad_mode="constant",
     power=2.0,
 )
+AMP_TO_DB = T.AmplitudeToDB()
 
 
 def sequence_mask(length: Any, max_length: Optional[Any] = None) -> torch.Tensor:
@@ -71,9 +71,9 @@ def plot_image_from_audio(
     fig, ax = plt.subplots(len(clean), 3, figsize=(20, 5 * len(clean)))
 
     for i, (c, n, p, length) in enumerate(zip(clean, noisy, preds, lengths)):
-        original_spec = librosa.power_to_db(SPEC_FN(c[:length]))
-        noisy_spec = librosa.power_to_db(SPEC_FN(n[:length]))
-        pred_spec = librosa.power_to_db(SPEC_FN(p[:length]))
+        original_spec = AMP_TO_DB(SPEC_FN(c[:length]))
+        noisy_spec = AMP_TO_DB(SPEC_FN(n[:length]))
+        pred_spec = AMP_TO_DB(SPEC_FN(p[:length]))
 
         ax[i][0].imshow(original_spec, origin="lower", aspect="auto")
         ax[i][0].axis("off")
