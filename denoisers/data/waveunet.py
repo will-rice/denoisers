@@ -48,7 +48,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._win_length = win_length
         self._hop_length = hop_length
         self._transforms = nn.Sequential(
-            transforms.ReverbFromSoundboard(p=0.97),
+            transforms.ReverbFromSoundboard(p=1.0),
             transforms.GaussianNoise(p=1.0),
         )
 
