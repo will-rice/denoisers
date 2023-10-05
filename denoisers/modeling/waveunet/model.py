@@ -187,7 +187,7 @@ class WaveUNetModel(nn.Module):
         out = torch.concat([out, inputs], dim=1)
         out = self.out_conv(out)
 
-        return out.to(torch.float32)
+        return out.float()
 
 
 class DownsampleBlock1D(nn.Module):
