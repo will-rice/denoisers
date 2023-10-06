@@ -25,7 +25,8 @@ class WaveUNetConfig(PretrainedConfig):
             264,
             288,
         ),
-        kernel_size: int = 15,
+        downsample_kernel_size: int = 15,
+        upsample_kernel_size: int = 5,
         dropout: float = 0.0,
         activation: str = "leaky_relu",
         autoencoder: bool = False,
@@ -33,7 +34,8 @@ class WaveUNetConfig(PretrainedConfig):
         **kwargs: Any,
     ) -> None:
         self.in_channels = in_channels
-        self.kernel_size = kernel_size
+        self.downsample_kernel_size = downsample_kernel_size
+        self.upsample_kernel_size = upsample_kernel_size
         self.dropout = dropout
         self.activation = activation
         self.autoencoder = autoencoder

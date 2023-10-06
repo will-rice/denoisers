@@ -1,8 +1,8 @@
 """Wave UNet Model."""
 from typing import Any, Dict, Optional, Tuple, Union
 
-import pytorch_lightning as pl
 import torch
+from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities import grad_norm
 from pytorch_lightning.utilities.memory import garbage_collection_cuda
 from torch import Tensor, nn
@@ -16,7 +16,7 @@ from denoisers.modeling.waveunet.config import WaveUNetConfig
 from denoisers.utils import log_audio_batch, plot_image_from_audio
 
 
-class WaveUNetLightningModule(pl.LightningModule):
+class WaveUNetLightningModule(LightningModule):
     """WaveUNet Model."""
 
     def __init__(self) -> None:
@@ -128,7 +128,11 @@ class WaveUNetModel(PreTrainedModel):
         super().__init__(config)
         self.config = config
         self.model = WaveUNet(
-            config.in_channels, config.kernel_size, config.dropout, config.activation
+            in_channels=config.in_channels,
+            downsample_kernel_size=config.downsample_kernel_size,
+            upsample_kernel_size=config.upsample_kernel_size,
+            dropout=config.dropout,
+            activation=config.activation,
         )
 
     def forward(self, inputs: Tensor) -> WaveUNetModelOutputs:
@@ -161,20 +165,24 @@ class WaveUNet(nn.Module):
             264,
             288,
         ),
-        kernel_size: int = 15,
+        downsample_kernel_size: int = 15,
+        upsample_kernel_size: int = 5,
         dropout: float = 0.0,
         activation: str = "leaky_relu",
     ) -> None:
         super().__init__()
         self.in_conv = nn.Conv1d(
-            1, in_channels[0], kernel_size=kernel_size, padding=kernel_size // 2
+            1,
+            in_channels[0],
+            kernel_size=downsample_kernel_size,
+            padding=downsample_kernel_size // 2,
         )
         self.encoder_layers = nn.ModuleList(
             [
                 DownsampleBlock1D(
                     in_channels[i],
                     out_channels=in_channels[i + 1],
-                    kernel_size=kernel_size,
+                    kernel_size=downsample_kernel_size,
                     dropout=dropout,
                     activation=activation,
                 )
@@ -185,8 +193,8 @@ class WaveUNet(nn.Module):
             nn.Conv1d(
                 in_channels[-1],
                 in_channels[-1],
-                kernel_size=kernel_size,
-                padding=kernel_size // 2,
+                kernel_size=downsample_kernel_size,
+                padding=downsample_kernel_size // 2,
             ),
             nn.BatchNorm1d(in_channels[-1]),
             Activation(activation),
@@ -197,7 +205,7 @@ class WaveUNet(nn.Module):
                 UpsampleBlock1D(
                     2 * in_channels[i + 1],
                     out_channels=in_channels[i],
-                    kernel_size=kernel_size,
+                    kernel_size=upsample_kernel_size,
                     dropout=dropout,
                     activation=activation,
                 )
