@@ -97,6 +97,7 @@ def log_audio_batch(
     preds: torch.Tensor,
     lengths: torch.Tensor,
     name: str,
+    sample_rate: int = 24000,
 ) -> None:
     """Log a batch of audio to wandb."""
     np_clean = clean.squeeze(1).cpu().detach().numpy()[0][: int(lengths[0])]
@@ -106,9 +107,9 @@ def log_audio_batch(
     wandb.log(
         {
             f"{name}_audio": {
-                f"{name}_clean": wandb.Audio(np_clean, sample_rate=24000),
-                f"{name}_noisy": wandb.Audio(np_noisy, sample_rate=24000),
-                f"{name}_pred": wandb.Audio(np_preds, sample_rate=24000),
+                f"{name}_clean": wandb.Audio(np_clean, sample_rate=sample_rate),
+                f"{name}_noisy": wandb.Audio(np_noisy, sample_rate=sample_rate),
+                f"{name}_pred": wandb.Audio(np_preds, sample_rate=sample_rate),
             }
         }
     )
