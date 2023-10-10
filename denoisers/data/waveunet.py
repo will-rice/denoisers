@@ -2,15 +2,14 @@
 import os
 from typing import List, NamedTuple, Optional
 
+import audiomentations as am
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from torch import Tensor, nn
+from torch import Tensor
 from torch.nn import functional as F
 from torch.utils.data import DataLoader
-
-from denoisers import transforms
 
 
 class Batch(NamedTuple):
@@ -30,7 +29,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         batch_size: int = 24,
         num_workers: int = os.cpu_count() // 2,  # type: ignore
         max_length: int = 16384 * 10,
-        sample_rate: int = 24000,
+        sample_rate: int = 48000,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -41,9 +40,13 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         # we don't use sample_rate here for divisibility
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._transforms = nn.Sequential(
-            transforms.ReverbFromSoundboard(p=1.0),
-            transforms.GaussianNoise(p=1.0),
+        self._transforms = am.Compose(
+            [
+                am.AddGaussianNoise(min_amplitude=0.001, max_amplitude=0.015, p=1.0),
+                am.RoomSimulator(p=1.0, leave_length_unchanged=True),
+                am.TanhDistortion(p=0.5),
+                am.Mp3Compression(min_bitrate=32, max_bitrate=64, p=0.5),
+            ]
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
@@ -80,7 +83,16 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             else:
                 audio = audio[:, : self._max_length]
 
-            noisy = self._transforms(audio.clone())
+            noisy = self._transforms(
+                audio.clone().numpy(), sample_rate=self._sample_rate
+            )
+            noisy = torch.from_numpy(noisy.copy())
+
+            if noisy.shape[-1] < self._max_length:
+                pad_length = self._max_length - noisy.shape[-1]
+                noisy = F.pad(noisy, (0, pad_length))
+            else:
+                noisy = noisy[:, : self._max_length]
 
             audios.append(audio)
             noisy_audio.append(noisy)
