@@ -134,6 +134,8 @@ class WaveUNetModelOutputs:
 class WaveUNetModel(PreTrainedModel):
     """Pretrained WaveUNet Model."""
 
+    config_class = WaveUNetConfig
+
     def __init__(self, config: WaveUNetConfig):
         super().__init__(config)
         self.config = config
