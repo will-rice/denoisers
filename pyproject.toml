@@ -23,3 +23,6 @@ classifiers = [
 
 [tool.isort]
 known_first_party = ["denoisers"]
+
+[tool.ruff]
+ignore-init-module-imports = true

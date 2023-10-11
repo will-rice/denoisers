@@ -30,13 +30,13 @@ class RandomTransform(nn.Module):
 class GaussianNoise(nn.Module):
     """Gaussian Noise Transform."""
 
-    def __init__(self, p: float = 0.5, db_min=1, db_max=30) -> None:
+    def __init__(self, p: float = 0.5, db_min: int = 1, db_max: int = 30) -> None:
         super().__init__()
         self.p = p
         self.db_min = db_min
         self.db_max = db_max
 
-    def forward(self, x: Union[Tensor, np.ndarray]) -> Tensor:
+    def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
         """Forward Pass."""
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
