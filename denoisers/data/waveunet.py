@@ -47,6 +47,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 am.TanhDistortion(p=0.5),
                 am.Mp3Compression(min_bitrate=32, max_bitrate=64, p=0.5),
                 am.ClippingDistortion(min_percentile_threshold=0, p=0.5),
+                am.AddBackgroundNoise("/data/bbc-sounds/"),
             ]
         )
 
