@@ -7,6 +7,11 @@ Gradio demo [here](https://wrice-denoisers.hf.space)
 
 ## Usage/Examples
 
+```sh
+pip install denoisers
+```
+
+
 ```python
 import torch
 import torchaudio
