@@ -47,7 +47,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                     p=1.0,
                     leave_length_unchanged=False,
                     use_ray_tracing=False,
-                    max_size_y=3.8,
+                    padding=0.2,
                 ),
                 am.TanhDistortion(p=0.5),
                 am.Mp3Compression(min_bitrate=32, max_bitrate=64, p=0.5),
