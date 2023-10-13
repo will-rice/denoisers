@@ -42,19 +42,16 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         # we don't use sample_rate here for divisibility
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._transforms = am.Compose(
-            [
-                am.AddGaussianSNR(min_snr_db=-10, max_snr_db=30, p=1.0),
-                am.RoomSimulator(p=1.0),
-                am.TanhDistortion(p=0.5),
-                am.Mp3Compression(min_bitrate=32, max_bitrate=64, p=0.5),
-                am.ClippingDistortion(min_percentile_threshold=0, p=0.5),
-            ]
-        )
+        augs = [
+            am.AddGaussianSNR(min_snr_db=-10, max_snr_db=30, p=1.0),
+            am.RoomSimulator(p=1.0),
+            am.TanhDistortion(p=0.5),
+            am.Mp3Compression(min_bitrate=32, max_bitrate=64, p=0.5),
+            am.ClippingDistortion(min_percentile_threshold=0, p=0.5),
+        ]
         if noise_path:
-            self._transforms.transforms.append(
-                am.AddBackgroundNoise(str(noise_path), p=1.0)
-            )
+            augs.append(am.AddBackgroundNoise(str(noise_path), p=1.0))
+        self._transforms = am.Compose(augs)
 
     def setup(self, stage: Optional[str] = "fit") -> None:
         """Setup datasets."""
