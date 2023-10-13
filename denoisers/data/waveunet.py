@@ -89,6 +89,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                     audio.clone().numpy(), sample_rate=self._sample_rate
                 )
             except Exception:
+                print(self._transforms.transforms[1].parameters)
                 continue
             noisy = torch.from_numpy(noisy.copy())
 
