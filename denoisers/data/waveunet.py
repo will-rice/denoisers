@@ -43,7 +43,12 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._transforms = am.Compose(
             [
                 am.AddGaussianSNR(min_snr_db=-10, max_snr_db=30, p=1.0),
-                am.RoomSimulator(p=1.0, leave_length_unchanged=False),
+                am.RoomSimulator(
+                    p=1.0,
+                    leave_length_unchanged=False,
+                    use_ray_tracing=False,
+                    max_size_y=3.8,
+                ),
                 am.TanhDistortion(p=0.5),
                 am.Mp3Compression(min_bitrate=32, max_bitrate=64, p=0.5),
                 am.ClippingDistortion(min_percentile_threshold=0, p=0.5),
