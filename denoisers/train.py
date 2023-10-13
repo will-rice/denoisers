@@ -22,6 +22,7 @@ def main() -> None:
     parser = argparse.ArgumentParser("train parser")
     parser.add_argument("name", type=str)
     parser.add_argument("data_path", type=Path)
+    parser.add_argument("--noise_path", type=Path)
     parser.add_argument("--project", default="denoisers", type=str)
     parser.add_argument(
         "--num_devices", default=1 if torch.cuda.is_available() else None
@@ -48,6 +49,7 @@ def main() -> None:
         batch_size=args.batch_size,
         max_length=config.max_length,
         sample_rate=config.sample_rate,
+        noise_path=args.noise_path,
     )
 
     logger = loggers.WandbLogger(

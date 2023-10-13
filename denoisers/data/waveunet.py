@@ -30,6 +30,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         num_workers: int = os.cpu_count() // 2,  # type: ignore
         max_length: int = 16384 * 10,
         sample_rate: int = 48000,
+        noise_path: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -47,9 +48,10 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 am.TanhDistortion(p=0.5),
                 am.Mp3Compression(min_bitrate=32, max_bitrate=64, p=0.5),
                 am.ClippingDistortion(min_percentile_threshold=0, p=0.5),
-                am.AddBackgroundNoise("/data/bbc-sounds/"),
             ]
         )
+        if noise_path:
+            self._transforms.transforms.append(am.AddBackgroundNoise(noise_path, p=1.0))
 
     def setup(self, stage: Optional[str] = "fit") -> None:
         """Setup datasets."""
