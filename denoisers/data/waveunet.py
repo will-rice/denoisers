@@ -43,12 +43,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._transforms = am.Compose(
             [
                 am.AddGaussianSNR(min_snr_db=-10, max_snr_db=30, p=1.0),
-                am.RoomSimulator(
-                    p=1.0,
-                    leave_length_unchanged=False,
-                    use_ray_tracing=False,
-                    padding=0.2,
-                ),
+                am.RoomSimulator(p=1.0),
                 am.TanhDistortion(p=0.5),
                 am.Mp3Compression(min_bitrate=32, max_bitrate=64, p=0.5),
                 am.ClippingDistortion(min_percentile_threshold=0, p=0.5),
@@ -89,9 +84,12 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             else:
                 audio = audio[:, : self._max_length]
 
-            noisy = self._transforms(
-                audio.clone().numpy(), sample_rate=self._sample_rate
-            )
+            try:
+                noisy = self._transforms(
+                    audio.clone().numpy(), sample_rate=self._sample_rate
+                )
+            except Exception:
+                continue
             noisy = torch.from_numpy(noisy.copy())
 
             if noisy.shape[-1] < self._max_length:
