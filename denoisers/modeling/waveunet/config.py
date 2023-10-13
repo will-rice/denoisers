@@ -31,7 +31,7 @@ class WaveUNetConfig(PretrainedConfig):
         activation: str = "leaky_relu",
         autoencoder: bool = False,
         max_length: int = 16384 * 10,
-        sample_rate: int = 24000,
+        sample_rate: int = 48000,
         **kwargs: Any,
     ) -> None:
         self.in_channels = in_channels
