@@ -25,13 +25,13 @@ class WaveUNetConfig(PretrainedConfig):
             264,
             288,
         ),
-        downsample_kernel_size: int = 5,
+        downsample_kernel_size: int = 15,
         upsample_kernel_size: int = 5,
         dropout: float = 0.1,
         activation: str = "leaky_relu",
         autoencoder: bool = True,
         max_length: int = 16384 * 10,
-        sample_rate: int = 48000,
+        sample_rate: int = 24000,
         **kwargs: Any,
     ) -> None:
         self.in_channels = in_channels
