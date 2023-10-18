@@ -29,7 +29,7 @@ class WaveUNetConfig(PretrainedConfig):
         upsample_kernel_size: int = 5,
         dropout: float = 0.1,
         activation: str = "leaky_relu",
-        autoencoder: bool = True,
+        autoencoder: bool = False,
         max_length: int = 16384 * 10,
         sample_rate: int = 24000,
         **kwargs: Any,
