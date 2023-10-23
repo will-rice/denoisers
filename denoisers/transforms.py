@@ -1,30 +1,13 @@
 """Transforms."""
 import random
 from pathlib import Path
-from typing import Any, Optional, Tuple, Union
+from typing import Tuple, Union
 
 import numpy as np
 import torch
 import torchaudio
 from pedalboard import Reverb  # type: ignore
 from torch import Tensor, nn
-
-
-class RandomTransform(nn.Module):
-    """Randomly apply list of transforms."""
-
-    def __init__(
-        self,
-        transforms: Any,
-    ):
-        super().__init__()
-        self.transforms = nn.ModuleList(transforms)
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward Pass."""
-        for t in self.transforms:
-            x = t(x).clamp(-1.0, 1.0)
-        return x
 
 
 class GaussianNoise(nn.Module):
@@ -41,7 +24,7 @@ class GaussianNoise(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.p:
+        if random.random() <= self.p:
             db = torch.randint(self.db_min, self.db_max, (1,))
             x = torchaudio.functional.add_noise(x, torch.randn_like(x), snr=db)
 
@@ -83,7 +66,7 @@ class FilterTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.p:
+        if random.random() <= self.p:
             gain = self.get_gain()
             center_freq = self.get_center_freq()
 
@@ -102,7 +85,7 @@ class ClipTransform(nn.Module):
     """Clip Transform."""
 
     def __init__(
-        self, clip_ceil: int = 1, clip_floor: float = 0.5, p: float = 0.5
+        self, clip_ceil: float = 1.0, clip_floor: float = 0.5, p: float = 0.5
     ) -> None:
         super().__init__()
         self.clip_ceil = clip_ceil
@@ -118,7 +101,7 @@ class ClipTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.p:
+        if random.random() <= self.p:
             clip_level = self.get_clip()
             x[torch.abs(x) > clip_level] = clip_level
 
@@ -160,7 +143,7 @@ class BreakTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.p:
+        if random.random() <= self.p:
             break_mask = self.get_mask(x)
             x = x * break_mask
 
@@ -182,7 +165,7 @@ class ReverbFromSoundboard(nn.Module):
         if isinstance(x, torch.Tensor):
             x = x.numpy()
 
-        if random.random() < self.p:
+        if random.random() <= self.p:
             self.reverb.room_size = random.random()
             x = self.reverb.process(x, self.sample_rate)
 
@@ -215,7 +198,7 @@ class SpecTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.p:
+        if random.random() <= self.p:
             a1, a2, b1, b2 = self._rand_resp()
             x = torchaudio.functional.biquad(
                 x, 1, self.b_hp[0], self.b_hp[1], 1, self.a_hp[0], self.a_hp[1]
@@ -264,7 +247,7 @@ class VolTransform(nn.Module):
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 
-        if random.random() < self.p:
+        if random.random() <= self.p:
             step_db = self.get_vol(x.size(0))
             for i in range(step_db.size(0)):
                 start = i * self.segment_samples
@@ -288,7 +271,6 @@ class NoiseFromFile(nn.Module):
         self.root = root
         self.p = p
         self.sample_rate = sample_rate
-        # TODO: This should be mmapped
         noise_paths = random.choices(list(root.glob("**/*.flac")), k=num_samples)
         self.noises = [torchaudio.load(noise)[0] for noise in noise_paths]
         print(f"Loaded {len(self.noises)} noises")
@@ -299,9 +281,8 @@ class NoiseFromFile(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-            noise = random.choice(self.noises).squeeze().to(x.device)
-            random_start = random.randint(0, noise.size(0) - x.size(0))
-            x += noise[random_start : random_start + x.size(0)]
+            noise = random.choice(self.noises).to(x.device)
+            x = x + noise[:, : x.size(1)]
 
         return x
 
@@ -320,7 +301,7 @@ class ReverbFromFile(nn.Module):
         self.root = root
         self.p = p
         self.sample_rate = sample_rate
-        response_paths = random.choices(list(root.glob("**/*.flac")), k=num_samples)
+        response_paths = random.choices(list(root.glob("**/*.wav")), k=num_samples)
         self.responses = [torchaudio.load(r)[0] for r in response_paths]
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
@@ -340,78 +321,6 @@ class ReverbFromFile(nn.Module):
         return x
 
 
-class FreqNoiseMask(nn.Module):
-    """Frequency Noise Mask."""
-
-    def __init__(self, size: int, p: float = 0.5) -> None:
-        super().__init__()
-        self.size = size
-        self.p = p
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward Pass."""
-        stft = torch.stft(
-            x,
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            return_complex=True,
-        )
-        mag_stft = torch.abs(stft)
-        mag_stft = noise_mask_along_axis(
-            mag_stft, mask_param=self.size, axis=1, p=self.p
-        )
-        phase = torch.angle(stft)
-        zero = torch.tensor(0.0).to(mag_stft.dtype)
-        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
-            torch.complex(zero, phase)
-        )
-        inv_audio = torch.istft(
-            phase_stft,
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            length=x.size(-1),
-        )
-        return inv_audio
-
-
-class TimeNoiseMask(nn.Module):
-    """Time Noise Mask."""
-
-    def __init__(self, size: int, p: float = 0.5) -> None:
-        super().__init__()
-        self.size = size
-        self.p = p
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward Pass."""
-        stft = torch.stft(
-            x,
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            return_complex=True,
-        )
-        mag_stft = torch.abs(stft)
-        mag_stft = noise_mask_along_axis(
-            mag_stft, mask_param=self.size, axis=2, p=self.p
-        )
-        phase = torch.angle(stft)
-        zero = torch.tensor(0.0).to(mag_stft.dtype)
-        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
-            torch.complex(zero, phase)
-        )
-        inv_audio = torch.istft(
-            phase_stft,
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            length=x.size(-1),
-        )
-        return inv_audio
-
-
 class FreqMask(nn.Module):
     """Frequency Mask."""
 
@@ -426,7 +335,7 @@ class FreqMask(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
-        if random.random() < self.p:
+        if random.random() <= self.p:
             for i in range(self.num_masks):
                 x = self.transform(x)
         return x
@@ -440,204 +349,13 @@ class TimeMask(nn.Module):
         self.num_masks = num_masks
         self.size = size
         self.p = p
-        self.transform = torchaudio.transforms.TimeMasking(time_mask_param=self.size)
+        self.transform = torchaudio.transforms.TimeMasking(
+            time_mask_param=self.size, p=1.0
+        )
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
-        if random.random() < self.p:
+        if random.random() <= self.p:
             for i in range(self.num_masks):
                 x = self.transform(x)
         return x
-
-
-class CutOut(nn.Module):
-    """Randomly mask out one or more patches from an image.
-
-    Args:
-        n_holes (int): Number of patches to cut out of each image.
-        length (int): The length (in pixels) of each square patch.
-    """
-
-    def __init__(self, n_holes: int, length: int) -> None:
-        super().__init__()
-        self.n_holes = n_holes
-        self.length = length
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass.
-
-        Args:
-            x (Tensor): Tensor image of size (C, H, W).
-
-        Returns:
-            Tensor: Image with n_holes of dimension length x length cut out of it.
-        """
-        original_size = x.size(-1)
-        stft = torch.stft(
-            x,
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            return_complex=True,
-        )
-        mag_stft = torch.abs(stft)
-
-        h = mag_stft.size(1)
-        w = mag_stft.size(2)
-
-        mask = torch.ones((h, w), dtype=torch.float32)
-
-        for n in range(self.n_holes):
-            y = torch.randint(size=(), high=h)
-            x = torch.randint(size=(), high=w)
-
-            y1 = torch.clamp(y - self.length // 2, 0, h)
-            y2 = torch.clamp(y + self.length // 2, 0, h)
-            x1 = torch.clamp(x - self.length // 2, 0, w)
-            x2 = torch.clamp(x + self.length // 2, 0, w)
-
-            mask[y1:y2, x1:x2] = 0.0
-
-        mask = mask.expand_as(mag_stft)
-        mag_stft *= mask
-
-        phase = torch.angle(stft)
-        zero = torch.tensor(0.0).to(mag_stft.dtype)
-        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
-            torch.complex(zero, phase)
-        )
-        inv_audio = torch.istft(
-            phase_stft,
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            length=original_size,
-        )
-        return inv_audio
-
-
-class NoiseOut(nn.Module):
-    """Randomly mask out one or more patches from an image.
-
-    Args:
-        n_holes (int): Number of patches to cut out of each image.
-        length (int): The length (in pixels) of each square patch.
-        intensity (float): The intensity of the noise to be added.
-    """
-
-    def __init__(
-        self, n_holes: int, length: int, intensity: Optional[float] = random.random()
-    ) -> None:
-        super().__init__()
-        self.n_holes = n_holes
-        self.length = length
-        self.intensity = intensity
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass.
-
-        Args:
-            x (Tensor): Tensor image of size (C, H, W).
-
-        Returns:
-            Tensor: Image with n_holes of dimension length x length cut out of it.
-        """
-        original_size = x.size(-1)
-        stft = torch.stft(
-            x,
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            return_complex=True,
-        )
-        mag_stft = torch.abs(stft)
-
-        h = mag_stft.size(1)
-        w = mag_stft.size(2)
-
-        mask = torch.ones((h, w), dtype=torch.float32)
-
-        for n in range(self.n_holes):
-            y = torch.randint(size=(), high=h)
-            x = torch.randint(size=(), high=w)
-
-            y1 = torch.clamp(y - self.length // 2, 0, h)
-            y2 = torch.clamp(y + self.length // 2, 0, h)
-            x1 = torch.clamp(x - self.length // 2, 0, w)
-            x2 = torch.clamp(x + self.length // 2, 0, w)
-
-            noise = torch.randn_like(mask[y1:y2, x1:x2])
-            noise *= self.intensity
-            mask[y1:y2, x1:x2] = noise
-
-        mask = mask.expand_as(mag_stft)
-        mag_stft *= mask
-
-        phase = torch.angle(stft)
-        zero = torch.tensor(0.0).to(mag_stft.dtype)
-        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
-            torch.complex(zero, phase)
-        )
-        inv_audio = torch.istft(
-            phase_stft,
-            n_fft=2048,
-            win_length=1024,
-            hop_length=256,
-            length=original_size,
-        )
-        return inv_audio
-
-
-def _get_mask_param(mask_param: int, p: float, axis_length: int) -> int:
-    if p == 1.0:
-        return mask_param
-    else:
-        return min(mask_param, int(axis_length * p))
-
-
-def noise_mask_along_axis(
-    specgram: Tensor,
-    mask_param: int,
-    axis: int,
-    p: float = 1.0,
-) -> Tensor:
-    """Add random noise mask on axis."""
-    if axis not in [1, 2]:
-        raise ValueError("Only Frequency and Time masking are supported")
-
-    if not 0.0 <= p <= 1.0:
-        raise ValueError(f"The value of p must be between 0.0 and 1.0 ({p} given).")
-
-    mask_param = _get_mask_param(mask_param, p, specgram.shape[axis])
-    if mask_param < 1:
-        return specgram
-
-    # pack batch
-    shape = specgram.size()
-    specgram = specgram.reshape([-1] + list(shape[-2:]))
-    value = torch.rand(1) * mask_param
-    min_value = torch.rand(1) * (specgram.size(axis) - value)
-
-    mask_start = (min_value.long()).squeeze()
-    mask_end = (min_value.long() + value.long()).squeeze()
-    mask = torch.arange(
-        0, specgram.shape[axis], device=specgram.device, dtype=specgram.dtype
-    )
-    mask = (mask >= mask_start) & (mask < mask_end)
-    if axis == 1:
-        mask = mask.unsqueeze(-1)
-
-    if mask_end - mask_start >= mask_param:
-        raise ValueError(
-            "Number of columns to be masked should be less than mask_param"
-        )
-
-    noise = torch.randn_like(specgram) * random.random()
-    noise *= mask
-
-    specgram += noise
-
-    # unpack batch
-    specgram = specgram.reshape(shape[:-2] + specgram.shape[-2:])
-
-    return specgram

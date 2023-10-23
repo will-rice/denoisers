@@ -28,7 +28,7 @@ repos:
       - id: ruff
         name: ruff
         language: system
-        entry: ruff
+        entry: ruff --fix
         types: [python]
       - id: mypy
         name: mypy

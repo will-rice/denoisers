@@ -3,6 +3,7 @@
 Denoisers is a denoising library for audio with a focus on simplicity and ease of use. There are two major types of architectures available. WaveUNet for waveform denoising and UNet for spectrogram denoising.
 
 ## Demo
+
 Gradio demo [here](https://wrice-denoisers.hf.space)
 
 ## Usage/Examples
@@ -10,7 +11,6 @@ Gradio demo [here](https://wrice-denoisers.hf.space)
 ```sh
 pip install denoisers
 ```
-
 
 ```python
 import torch

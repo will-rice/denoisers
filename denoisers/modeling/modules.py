@@ -195,53 +195,6 @@ class UpsampleBlock1D(nn.Module):
         return x
 
 
-class ResidualDownBlock1D(nn.Module):
-    """1d residual down block."""
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        activation: str = "leaky_relu",
-        dropout: float = 0.0,
-    ) -> None:
-        super().__init__()
-        self.conv_1 = DownsampleBlock1D(
-            in_channels=in_channels,
-            out_channels=in_channels,
-            kernel_size=kernel_size,
-            dropout=dropout,
-            activation=activation,
-            bias=False,
-        )
-
-        self.conv_2 = DownsampleBlock1D(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            dropout=dropout,
-            activation=activation,
-            bias=False,
-        )
-        self.res_conv = Downsample1D(
-            in_channels=in_channels,
-            out_channels=out_channels,
-            kernel_size=1,
-            stride=2,
-            use_conv=True,
-            bias=False,
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass."""
-        residual = x
-        x = self.conv_1(x)
-        x = self.conv_2(x)
-        x = x + self.res_conv(residual)
-        return x
-
-
 class Activation(nn.Module):
     """Activation function."""
 
