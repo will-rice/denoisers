@@ -6,7 +6,7 @@ import pytorch_lightning as pl
 import torch
 from pytorch_lightning import loggers
 
-from denoisers.data.waveunet import AudioFromFileDataModule
+from denoisers.datamodules.waveunet import AudioFromFileDataModule
 from denoisers.datasets.audio import AudioDataset
 from denoisers.modeling.waveunet.config import WaveUNetConfig
 from denoisers.modeling.waveunet.model import WaveUNetLightningModule
