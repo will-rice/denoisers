@@ -7,12 +7,12 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import functional as M
 
-from denoisers.data.unet import Batch
+from denoisers.datamodules.unet import Batch
 from denoisers.utils import plot_image_batch
 
 
 class UNet(pl.LightningModule):
-    """UNet model for image-like data NCHW."""
+    """UNet model for image-like datamodules NCHW."""
 
     def __init__(
         self,

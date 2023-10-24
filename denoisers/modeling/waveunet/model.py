@@ -12,7 +12,7 @@ from torchmetrics.audio import (
 )
 from transformers import PreTrainedModel
 
-from denoisers.data.waveunet import Batch
+from denoisers.datamodules.waveunet import Batch
 from denoisers.metrics import calculate_pesq
 from denoisers.modeling.modules import Activation, DownsampleBlock1D, UpsampleBlock1D
 from denoisers.modeling.waveunet.config import WaveUNetConfig
