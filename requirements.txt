@@ -158,6 +158,8 @@ pathtools==0.1.2
     # via wandb
 pedalboard==0.8.5
     # via -r requirements.in
+pesq==0.0.4
+    # via -r requirements.in
 pillow==10.1.0
     # via
     #   matplotlib
