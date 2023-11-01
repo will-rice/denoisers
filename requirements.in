@@ -16,3 +16,4 @@ librosa
 matplotlib
 pedalboard
 transformers
+pesq

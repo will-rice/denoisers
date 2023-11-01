@@ -1,5 +1,14 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = [
+    "setuptools>=61.0",
+    "pesq",
+    "torch",
+    "torchaudio",
+    "pytorch-lightning",
+    "transformers",
+    "wandb",
+    "soundboard",
+]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -26,3 +35,8 @@ known_first_party = ["denoisers"]
 
 [tool.ruff]
 ignore-init-module-imports = true
+
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
