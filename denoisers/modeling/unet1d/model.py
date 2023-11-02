@@ -1,4 +1,4 @@
-"""Wave UNet Model."""
+"""UNet1D model."""
 from typing import Any, Dict, Optional, Tuple, Union
 
 import torch
@@ -12,21 +12,20 @@ from torchmetrics.audio import (
 )
 from transformers import PreTrainedModel
 
-from denoisers.datamodules.waveunet import Batch
+from denoisers.datamodules.unet1d import Batch
 from denoisers.metrics import calculate_pesq
-from denoisers.modeling.modules import Activation, DownsampleBlock1D, UpsampleBlock1D
-from denoisers.modeling.waveunet.config import WaveUNetConfig
+from denoisers.modeling.unet1d.config import UNet1DConfig
+from denoisers.modeling.unet1d.modules import DownBlock1D, MidBlock1D, UpBlock1D
 from denoisers.utils import log_audio_batch, plot_image_from_audio
 
 
-class WaveUNetLightningModule(LightningModule):
-    """WaveUNet Model."""
+class UNet1DLightningModule(LightningModule):
+    """UNet1D Lightning Module."""
 
-    def __init__(self, config: WaveUNetConfig) -> None:
+    def __init__(self, config: UNet1DConfig) -> None:
         super().__init__()
-        self.save_hyperparameters()
         self.config = config
-        self.model = WaveUNetModel(self.config)
+        self.model = UNet1DModel(config)
         self.loss_fn = nn.L1Loss()
         self.snr = ScaleInvariantSignalNoiseRatio()
         self.sdr = ScaleInvariantSignalDistortionRatio()
@@ -123,7 +122,7 @@ class WaveUNetLightningModule(LightningModule):
         return optimizer
 
 
-class WaveUNetModelOutputs:
+class UNet1DModelOutputs:
     """Class for holding model outputs."""
 
     def __init__(self, logits: Tensor, noise: Optional[Tensor] = None) -> None:
@@ -131,101 +130,100 @@ class WaveUNetModelOutputs:
         self.noise = noise
 
 
-class WaveUNetModel(PreTrainedModel):
-    """Pretrained WaveUNet Model."""
+class UNet1DModel(PreTrainedModel):
+    """Pretrained UNet1D Model."""
 
-    config_class = WaveUNetConfig
+    config_class = UNet1DConfig
 
-    def __init__(self, config: WaveUNetConfig) -> None:
+    def __init__(self, config: UNet1DConfig) -> None:
         super().__init__(config)
         self.config = config
-        self.model = WaveUNet(
-            in_channels=config.in_channels,
-            downsample_kernel_size=config.downsample_kernel_size,
-            upsample_kernel_size=config.upsample_kernel_size,
-            dropout=config.dropout,
+        self.model = UNet1D(
+            channels=config.channels,
+            kernel_size=config.kernel_size,
+            num_groups=config.num_groups,
             activation=config.activation,
+            dropout=config.dropout,
         )
 
-    def forward(self, inputs: Tensor) -> WaveUNetModelOutputs:
+    def forward(self, inputs: Tensor) -> UNet1DModelOutputs:
         """Forward Pass."""
         if self.config.autoencoder:
             logits = self.model(inputs)
-            return WaveUNetModelOutputs(logits=logits)
+            return UNet1DModelOutputs(logits=logits)
         else:
             noise = self.model(inputs)
             denoised = inputs - noise
-            return WaveUNetModelOutputs(logits=denoised, noise=noise)
+            return UNet1DModelOutputs(logits=denoised, noise=noise)
 
 
-class WaveUNet(nn.Module):
-    """WaveUNet Model."""
+class UNet1D(nn.Module):
+    """UNet1D model."""
 
     def __init__(
         self,
-        in_channels: Tuple[int, ...] = (
-            24,
-            48,
-            72,
+        channels: Tuple[int, ...] = (
+            32,
+            64,
             96,
-            120,
-            144,
-            168,
+            128,
+            160,
             192,
-            216,
-            240,
-            264,
+            224,
+            256,
             288,
+            320,
+            352,
+            384,
         ),
-        downsample_kernel_size: int = 15,
-        upsample_kernel_size: int = 5,
-        dropout: float = 0.0,
-        activation: str = "leaky_relu",
+        kernel_size: int = 3,
+        num_groups: int = 32,
+        activation: str = "silu",
+        dropout: float = 0.1,
     ) -> None:
         super().__init__()
         self.in_conv = nn.Conv1d(
             1,
-            in_channels[0],
-            kernel_size=downsample_kernel_size,
-            padding=downsample_kernel_size // 2,
+            channels[0],
+            kernel_size=kernel_size,
+            padding=kernel_size // 2,
         )
         self.encoder_layers = nn.ModuleList(
             [
-                DownsampleBlock1D(
-                    in_channels[i],
-                    out_channels=in_channels[i + 1],
-                    kernel_size=downsample_kernel_size,
+                DownBlock1D(
+                    channels[i],
+                    out_channels=channels[i + 1],
+                    kernel_size=kernel_size,
+                    num_groups=num_groups,
                     dropout=dropout,
                     activation=activation,
                 )
-                for i in range(len(in_channels) - 1)
+                for i in range(len(channels) - 1)
             ]
         )
-        self.middle = nn.Sequential(
-            nn.Conv1d(
-                in_channels[-1],
-                in_channels[-1],
-                kernel_size=downsample_kernel_size,
-                padding=downsample_kernel_size // 2,
-            ),
-            nn.BatchNorm1d(in_channels[-1]),
-            Activation(activation),
-            nn.Dropout(dropout),
+        self.middle = MidBlock1D(
+            in_channels=channels[-1],
+            out_channels=channels[-1],
+            kernel_size=kernel_size,
+            num_groups=num_groups,
+            dropout=dropout,
+            activation=activation,
         )
         self.decoder_layers = nn.ModuleList(
             [
-                UpsampleBlock1D(
-                    2 * in_channels[i + 1],
-                    out_channels=in_channels[i],
-                    kernel_size=upsample_kernel_size,
+                UpBlock1D(
+                    channels[i + 1],
+                    out_channels=channels[i],
+                    kernel_size=kernel_size,
+                    num_groups=num_groups,
                     dropout=dropout,
                     activation=activation,
                 )
-                for i in reversed(range(len(in_channels) - 1))
+                for i in reversed(range(len(channels) - 1))
             ]
         )
         self.out_conv = nn.Sequential(
-            nn.Conv1d(in_channels[0] + 1, 1, kernel_size=1, padding=0),
+            nn.Conv1d(channels[0] + 1, 1, kernel_size=1, padding=0),
             nn.Tanh(),
         )
 
@@ -241,8 +239,7 @@ class WaveUNet(nn.Module):
         out = self.middle(out)
 
         for skip, layer in zip(reversed(skips), self.decoder_layers):
-            out = torch.concat([out, skip], dim=1)
-            out = layer(out)
+            out = layer(out + skip)
 
         out = torch.concat([out, inputs], dim=1)
         out = self.out_conv(out)

@@ -1,45 +1,43 @@
 """Tests for WaveUNet model."""
 import torch
 
-from denoisers.datamodules.waveunet import Batch
-from denoisers.modeling.waveunet.model import (
-    WaveUNetConfig,
-    WaveUNetLightningModule,
-    WaveUNetModel,
+from denoisers.datamodules.unet1d import Batch
+from denoisers.modeling.unet1d.model import (
+    UNet1DConfig,
+    UNet1DLightningModule,
+    UNet1DModel,
 )
 
 
 def test_config():
-    config = WaveUNetConfig(
+    config = UNet1DConfig(
         max_length=8192,
         sample_rate=16000,
-        in_channels=(1, 2, 3, 4, 5, 6),
-        downsample_kernel_size=3,
-        upsample_kernel_size=3,
+        channels=(1, 2, 3, 4, 5, 6),
+        kernel_size=3,
         dropout=0.1,
-        activation="leaky_relu",
+        activation="silu",
         autoencoder=False,
     )
     assert config.max_length == 8192
     assert config.sample_rate == 16000
-    assert config.in_channels == (1, 2, 3, 4, 5, 6)
-    assert config.downsample_kernel_size == 3
-    assert config.upsample_kernel_size == 3
+    assert config.channels == (1, 2, 3, 4, 5, 6)
+    assert config.kernel_size == 3
     assert config.dropout == 0.1
-    assert config.activation == "leaky_relu"
+    assert config.activation == "silu"
     assert config.autoencoder is False
 
 
 def test_model():
     """Test model."""
-    config = WaveUNetConfig(
+    config = UNet1DConfig(
         max_length=16384,
         sample_rate=16000,
-        in_channels=(1, 2, 3),
-        downsample_kernel_size=3,
-        upsample_kernel_size=3,
+        channels=(2, 4, 6, 8),
+        kernel_size=3,
+        num_groups=2,
     )
-    model = WaveUNetModel(config)
+    model = UNet1DModel(config)
     model.eval()
 
     audio = torch.randn(1, 1, config.max_length)
@@ -52,14 +50,14 @@ def test_model():
 
 def test_lightning_module():
     """Test lightning module."""
-    config = WaveUNetConfig(
+    config = UNet1DConfig(
         max_length=16384,
         sample_rate=16000,
-        in_channels=(1, 2, 3),
-        downsample_kernel_size=3,
-        upsample_kernel_size=3,
+        in_channels=(2, 4, 6, 8),
+        kernel_size=3,
+        num_groups=2,
     )
-    model = WaveUNetLightningModule(config)
+    model = UNet1DLightningModule(config)
 
     audio = torch.randn(1, 1, config.max_length)
     batch = Batch(audio=audio, noisy=audio, lengths=torch.tensor([audio.shape[-1]]))
