@@ -7,7 +7,6 @@ from denoisers.modeling.unet1d.model import (
     UNet1DLightningModule,
     UNet1DModel,
 )
-from denoisers.testing import sine_wave
 
 
 def test_config():
@@ -32,15 +31,16 @@ def test_config():
 def test_model():
     """Test model."""
     config = UNet1DConfig(
-        max_length=1024,
+        max_length=16384,
         sample_rate=16000,
-        channels=(1, 2, 3),
+        channels=(2, 4, 6, 8),
         kernel_size=3,
+        num_groups=2,
     )
     model = UNet1DModel(config)
     model.eval()
 
-    audio = sine_wave(800, config.max_length, config.sample_rate)[None]
+    audio = torch.randn(1, 1, config.max_length)
     with torch.no_grad():
         recon = model(audio).logits
 
@@ -51,15 +51,15 @@ def test_model():
 def test_lightning_module():
     """Test lightning module."""
     config = UNet1DConfig(
-        max_length=1024,
+        max_length=16384,
         sample_rate=16000,
-        in_channels=(1, 2, 3),
-        downsample_kernel_size=3,
-        upsample_kernel_size=3,
+        in_channels=(2, 4, 6, 8),
+        kernel_size=3,
+        num_groups=2,
     )
     model = UNet1DLightningModule(config)
 
-    audio = sine_wave(800, config.max_length, config.sample_rate)[None]
+    audio = torch.randn(1, 1, config.max_length)
     batch = Batch(audio=audio, noisy=audio, lengths=torch.tensor([audio.shape[-1]]))
 
     # test forward
