@@ -1,5 +1,5 @@
 """Wave UNet Model."""
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import torch
 from pytorch_lightning import LightningModule
@@ -38,8 +38,10 @@ class WaveUNetLightningModule(LightningModule):
         return self.model(inputs)
 
     def training_step(
-        self, batch: Batch, batch_idx: Any
-    ) -> Union[Tensor, Dict[str, Any]]:
+        self,
+        batch: Batch,
+        batch_idx: Any,
+    ) -> Union[Tensor, dict[str, Any]]:
         """Train step."""
         outputs = self(batch.noisy)
 
@@ -58,8 +60,10 @@ class WaveUNetLightningModule(LightningModule):
         return loss
 
     def validation_step(
-        self, batch: Any, batch_idx: Any
-    ) -> Union[Tensor, Dict[str, Any]]:
+        self,
+        batch: Any,
+        batch_idx: Any,
+    ) -> Union[Tensor, dict[str, Any]]:
         """Val step."""
         outputs = self(batch.noisy)
 
@@ -83,7 +87,7 @@ class WaveUNetLightningModule(LightningModule):
                 batch.noisy.detach(),
                 outputs.logits.detach(),
                 batch.lengths.detach(),
-            )
+            ),
         }
 
         return loss
@@ -117,7 +121,9 @@ class WaveUNetLightningModule(LightningModule):
     def configure_optimizers(self) -> Any:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(
-            self.model.parameters(), lr=1e-4, weight_decay=1e-2
+            self.model.parameters(),
+            lr=1e-4,
+            weight_decay=1e-2,
         )
 
         return optimizer
@@ -163,7 +169,7 @@ class WaveUNet(nn.Module):
 
     def __init__(
         self,
-        in_channels: Tuple[int, ...] = (
+        in_channels: tuple[int, ...] = (
             24,
             48,
             72,
@@ -199,7 +205,7 @@ class WaveUNet(nn.Module):
                     activation=activation,
                 )
                 for i in range(len(in_channels) - 1)
-            ]
+            ],
         )
         self.middle = nn.Sequential(
             nn.Conv1d(
@@ -222,7 +228,7 @@ class WaveUNet(nn.Module):
                     activation=activation,
                 )
                 for i in reversed(range(len(in_channels) - 1))
-            ]
+            ],
         )
         self.out_conv = nn.Sequential(
             nn.Conv1d(in_channels[0] + 1, 1, kernel_size=1, padding=0),

@@ -1,5 +1,5 @@
 """Adapted from https://github.com/milesial/Pytorch-UNet."""
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import pytorch_lightning as pl
 import torch
@@ -76,7 +76,7 @@ class UNet(pl.LightningModule):
         phase = torch.angle(stft)
         zero = torch.tensor(0.0).to(mag_stft.dtype)
         phase_stft = torch.complex(mag_stft, zero) * torch.exp(
-            torch.complex(zero, phase)
+            torch.complex(zero, phase),
         )
         inv_audio = torch.istft(
             phase_stft,
@@ -88,8 +88,10 @@ class UNet(pl.LightningModule):
         return inv_audio
 
     def training_step(
-        self, batch: Batch, batch_idx: Any
-    ) -> Union[Tensor, Dict[str, Any]]:
+        self,
+        batch: Batch,
+        batch_idx: Any,
+    ) -> Union[Tensor, dict[str, Any]]:
         """Train step."""
         logits = self(batch.noisy)
         loss = F.l1_loss(logits, batch.noisy - batch.specs)
@@ -101,8 +103,10 @@ class UNet(pl.LightningModule):
         return loss
 
     def validation_step(
-        self, batch: Any, batch_idx: Any
-    ) -> Union[Tensor, Dict[str, Any]]:
+        self,
+        batch: Any,
+        batch_idx: Any,
+    ) -> Union[Tensor, dict[str, Any]]:
         """Val step."""
         logits = self(batch.noisy)
         loss = F.l1_loss(logits, batch.noisy - batch.specs)
@@ -115,7 +119,7 @@ class UNet(pl.LightningModule):
 
         return loss
 
-    def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
+    def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, dict[str, Any]]:
         """Test step."""
         logits = self(batch.noisy)
         loss = F.l1_loss(logits, batch.noisy - batch.specs)
@@ -137,7 +141,10 @@ class DoubleConv(nn.Module):
     """Convolution => [BN] => ReLU * 2."""
 
     def __init__(
-        self, in_channels: int, out_channels: int, mid_channels: Optional[int] = None
+        self,
+        in_channels: int,
+        out_channels: int,
+        mid_channels: Optional[int] = None,
     ):
         super().__init__()
         if not mid_channels:
@@ -175,19 +182,27 @@ class UpSampleLayer(nn.Module):
     """UpSample Conv Layer."""
 
     def __init__(
-        self, in_channels: int, out_channels: int, bilinear: Optional[bool] = True
+        self,
+        in_channels: int,
+        out_channels: int,
+        bilinear: Optional[bool] = True,
     ):
         super().__init__()
 
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
             self.up: Union[nn.Upsample, nn.ConvTranspose2d] = nn.Upsample(
-                scale_factor=2, mode="bilinear", align_corners=True
+                scale_factor=2,
+                mode="bilinear",
+                align_corners=True,
             )
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
         else:
             self.up = nn.ConvTranspose2d(
-                in_channels, in_channels // 2, kernel_size=2, stride=2
+                in_channels,
+                in_channels // 2,
+                kernel_size=2,
+                stride=2,
             )
             self.conv = DoubleConv(in_channels, out_channels)
 

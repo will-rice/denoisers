@@ -33,8 +33,21 @@ classifiers = [
 [tool.isort]
 known_first_party = ["denoisers"]
 
-[tool.ruff]
-ignore-init-module-imports = true
+[tool.ruff.lint]
+select = [
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  "B",
+  # flake8-simplify
+  "SIM",
+  # isort
+  "I",
+]
 
 [tool.pytest.ini_options]
 filterwarnings = [

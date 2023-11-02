@@ -24,7 +24,8 @@ def main() -> None:
     parser.add_argument("data_path", type=Path)
     parser.add_argument("--project", default="denoisers", type=str)
     parser.add_argument(
-        "--num_devices", default=1 if torch.cuda.is_available() else None
+        "--num_devices",
+        default=1 if torch.cuda.is_available() else None,
     )
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--seed", default=1234, type=int)

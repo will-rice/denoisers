@@ -9,7 +9,8 @@ class Upsample1D(nn.Module):
 
     https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/resnet.py#L29
 
-    Parameters:
+    Parameters
+    ----------
         in_channels (`int`):
             number of channels in the inputs and outputs.
         out_channels (`int`, optional):
@@ -62,7 +63,10 @@ class Upsample1D(nn.Module):
             return self.conv(inputs)
 
         outputs = nn.functional.interpolate(
-            inputs, scale_factor=2.0, mode="linear", align_corners=True
+            inputs,
+            scale_factor=2.0,
+            mode="linear",
+            align_corners=True,
         )
 
         if self.use_conv:
@@ -76,7 +80,8 @@ class Downsample1D(nn.Module):
 
     https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/resnet.py#L70
 
-    Parameters:
+    Parameters
+    ----------
         in_channels (`int`):
             number of channels in the inputs and outputs.
         out_channels (`int`, optional):

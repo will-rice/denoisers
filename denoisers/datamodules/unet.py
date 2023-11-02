@@ -1,6 +1,6 @@
 """Unet Data modules."""
 import os
-from typing import List, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 import numpy as np
 import pytorch_lightning as pl
@@ -63,10 +63,10 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         val_split = int(np.ceil(len(self._dataset) * 0.05))  # type: ignore
 
         self.train_dataset, self.val_dataset = torch.utils.data.random_split(
-            self._dataset, lengths=(train_split, val_split)
+            self._dataset, lengths=(train_split, val_split),
         )
 
-    def pad_collate_fn(self, paths: List[str]) -> Batch:
+    def pad_collate_fn(self, paths: list[str]) -> Batch:
         """Pad collate function."""
         specs = []
         noisy_audio = []

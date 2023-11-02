@@ -132,7 +132,10 @@ def test_reverb_from_file():
     audio = sine_wave(800, 1, 8000)
 
     transform = ReverbFromFile(
-        Path("tests/assets/reverb"), p=1.0, sample_rate=8000, num_samples=1
+        Path("tests/assets/reverb"),
+        p=1.0,
+        sample_rate=8000,
+        num_samples=1,
     )
 
     noisy_audio = transform(audio.clone())
