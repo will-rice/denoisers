@@ -2,9 +2,9 @@
 requires = [
     "setuptools>=61.0",
     "pesq",
-    "torch",
-    "torchaudio",
-    "pytorch-lightning",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "pytorch-lightning>=2.0.0",
     "transformers",
     "wandb",
     "soundboard",
