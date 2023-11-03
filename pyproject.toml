@@ -1,6 +1,8 @@
 [build-system]
 requires = [
+    "pip",
     "setuptools>=61.0",
+    "wheel",
     "pesq",
     "torch>=2.0.0",
     "torchaudio>=2.0.0",
@@ -13,7 +15,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "denoisers"
-version = "0.1.4"
+version = "0.1.5"
 authors = [
   { name="Will Rice", email="wrice20@gmail.com" },
 ]
