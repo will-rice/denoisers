@@ -10,6 +10,7 @@ from denoisers.modeling.unet1d.model import (
 
 
 def test_config():
+    """Test config."""
     config = UNet1DConfig(
         max_length=8192,
         sample_rate=16000,
@@ -28,7 +29,7 @@ def test_config():
     assert config.autoencoder is False
 
 
-def test_model():
+def test_model() -> None:
     """Test model."""
     config = UNet1DConfig(
         max_length=16384,
@@ -48,7 +49,7 @@ def test_model():
     assert audio.shape == recon.shape
 
 
-def test_lightning_module():
+def test_lightning_module() -> None:
     """Test lightning module."""
     config = UNet1DConfig(
         max_length=16384,

@@ -13,7 +13,10 @@ def calculate_pesq(pred: Tensor, true: Tensor, sample_rate: int = 24000) -> Tens
 
     try:
         pesq = torchmetrics.functional.audio.pesq.perceptual_evaluation_speech_quality(
-            pred_resample, true_resample, 16000, "wb"
+            pred_resample,
+            true_resample,
+            16000,
+            "wb",
         )
     except cypesq.NoUtterancesError:
         pesq = torch.tensor(0.0)

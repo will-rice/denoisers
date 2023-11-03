@@ -1,7 +1,7 @@
 """Transforms."""
 import random
 from pathlib import Path
-from typing import Tuple, Union
+from typing import Union
 
 import numpy as np
 import torch
@@ -85,7 +85,10 @@ class ClipTransform(nn.Module):
     """Clip Transform."""
 
     def __init__(
-        self, clip_ceil: float = 1.0, clip_floor: float = 0.5, p: float = 0.5
+        self,
+        clip_ceil: float = 1.0,
+        clip_floor: float = 0.5,
+        p: float = 0.5,
     ) -> None:
         super().__init__()
         self.clip_ceil = clip_ceil
@@ -186,7 +189,7 @@ class SpecTransform(nn.Module):
     def _uni_rand(self) -> Tensor:
         return torch.rand(1) - 0.5
 
-    def _rand_resp(self) -> Tuple[Tensor, Tensor, Tensor, Tensor]:
+    def _rand_resp(self) -> tuple[Tensor, Tensor, Tensor, Tensor]:
         a1 = 0.75 * self._uni_rand()
         a2 = 0.75 * self._uni_rand()
         b1 = 0.75 * self._uni_rand()
@@ -201,7 +204,13 @@ class SpecTransform(nn.Module):
         if random.random() <= self.p:
             a1, a2, b1, b2 = self._rand_resp()
             x = torchaudio.functional.biquad(
-                x, 1, self.b_hp[0], self.b_hp[1], 1, self.a_hp[0], self.a_hp[1]
+                x,
+                1,
+                self.b_hp[0],
+                self.b_hp[1],
+                1,
+                self.a_hp[0],
+                self.a_hp[1],
             )
             x = torchaudio.functional.biquad(x, 1, b1, b2, 1, a1, a2)
 
@@ -231,7 +240,9 @@ class VolTransform(nn.Module):
         """Get volume."""
         segments = sample_length / (self.segment_len * self.sample_rate)
         step_db = torch.arange(
-            self.vol_ceil, self.vol_floor, (self.vol_floor - self.vol_ceil) / segments
+            self.vol_ceil,
+            self.vol_floor,
+            (self.vol_floor - self.vol_ceil) / segments,
         )
         return step_db
 
@@ -314,9 +325,9 @@ class ReverbFromFile(nn.Module):
             rir_raw = rir_raw[random.randint(0, rir_raw.shape[0] - 1)][None]
             rir = rir_raw
             rir = rir / torch.norm(rir, p=2)
-            RIR = torch.flip(rir, [1])
-            x = torch.nn.functional.pad(x, (RIR.shape[1] - 1, 0))
-            x = nn.functional.conv1d(x[None, ...], RIR[None, ...])[0]
+            rir = torch.flip(rir, [1])
+            x = torch.nn.functional.pad(x, (rir.shape[1] - 1, 0))
+            x = nn.functional.conv1d(x[None, ...], rir[None, ...])[0]
 
         return x
 
@@ -330,13 +341,13 @@ class FreqMask(nn.Module):
         self.size = size
         self.p = p
         self.transform = torchaudio.transforms.FrequencyMasking(
-            freq_mask_param=self.size
+            freq_mask_param=self.size,
         )
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         if random.random() <= self.p:
-            for i in range(self.num_masks):
+            for _ in range(self.num_masks):
                 x = self.transform(x)
         return x
 
@@ -350,12 +361,13 @@ class TimeMask(nn.Module):
         self.size = size
         self.p = p
         self.transform = torchaudio.transforms.TimeMasking(
-            time_mask_param=self.size, p=1.0
+            time_mask_param=self.size,
+            p=1.0,
         )
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         if random.random() <= self.p:
-            for i in range(self.num_masks):
+            for _ in range(self.num_masks):
                 x = self.transform(x)
         return x

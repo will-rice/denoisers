@@ -21,7 +21,8 @@ from denoisers.transforms import (
 )
 
 
-def test_gaussian_noise():
+def test_gaussian_noise() -> None:
+    """Test gaussian noise."""
     transform = GaussianNoise(p=1.0)
     audio = sine_wave(800, 1, 16000)
     noisy_audio = transform(audio.clone())
@@ -34,7 +35,8 @@ def test_gaussian_noise():
     assert isinstance(noisy_audio, Tensor)
 
 
-def test_filter_transform():
+def test_filter_transform() -> None:
+    """Test filter transform."""
     transform = FilterTransform(p=1.0)
     audio = sine_wave(800, 1, 16000)
     noisy_audio = transform(audio.clone())
@@ -47,7 +49,8 @@ def test_filter_transform():
     assert isinstance(noisy_audio, Tensor)
 
 
-def test_clip_transform():
+def test_clip_transform() -> None:
+    """Test clip transform."""
     transform = ClipTransform(p=1.0, clip_ceil=0.5, clip_floor=-0.5)
     audio = sine_wave(800, 1, 16000)
     noisy_audio = transform(audio.clone())
@@ -60,7 +63,8 @@ def test_clip_transform():
     assert isinstance(noisy_audio, Tensor)
 
 
-def test_break_transform():
+def test_break_transform() -> None:
+    """Test break transform."""
     transform = BreakTransform(p=1.0)
     audio = sine_wave(800, 1, 16000)
     noisy_audio = transform(audio.clone())
@@ -73,7 +77,8 @@ def test_break_transform():
     assert isinstance(noisy_audio, Tensor)
 
 
-def test_reverb_from_soundboard():
+def test_reverb_from_soundboard() -> None:
+    """Test reverb from soundboard."""
     transform = ReverbFromSoundboard(p=1.0)
     audio = sine_wave(800, 1, 16000)
     noisy_audio = transform(audio.clone())
@@ -86,7 +91,8 @@ def test_reverb_from_soundboard():
     assert isinstance(noisy_audio, Tensor)
 
 
-def test_spec_transform():
+def test_spec_transform() -> None:
+    """Test spec transform."""
     transform = SpecTransform(p=1.0)
     audio = sine_wave(800, 1, 16000)
     noisy_audio = transform(audio.clone())
@@ -99,7 +105,8 @@ def test_spec_transform():
     assert isinstance(noisy_audio, Tensor)
 
 
-def test_vol_transform():
+def test_vol_transform() -> None:
+    """Test vol transform."""
     transform = VolTransform(p=1.0, sample_rate=16000)
     audio = sine_wave(800, 1, 16000)
     noisy_audio = transform(audio.clone())
@@ -112,7 +119,8 @@ def test_vol_transform():
     assert isinstance(noisy_audio, Tensor)
 
 
-def test_noise_from_file(tmpdir):
+def test_noise_from_file(tmpdir) -> None:
+    """Test noise from file."""
     save_path = Path(tmpdir) / "noises"
     save_path.mkdir(exist_ok=True, parents=True)
 
@@ -128,11 +136,15 @@ def test_noise_from_file(tmpdir):
     torch.testing.assert_close(audio, noisy_audio - noise)
 
 
-def test_reverb_from_file():
+def test_reverb_from_file() -> None:
+    """Test reverb from file."""
     audio = sine_wave(800, 1, 8000)
 
     transform = ReverbFromFile(
-        Path("tests/assets/reverb"), p=1.0, sample_rate=8000, num_samples=1
+        Path("tests/assets/reverb"),
+        p=1.0,
+        sample_rate=8000,
+        num_samples=1,
     )
 
     noisy_audio = transform(audio.clone())
@@ -144,14 +156,16 @@ def test_reverb_from_file():
     assert isinstance(noisy_audio, Tensor)
 
 
-def test_freq_mask():
+def test_freq_mask() -> None:
+    """Test freq mask."""
     spec = torch.ones(1, 2048, 100)
     noisy_spec = FreqMask(num_masks=2, size=80, p=1.0)(spec)
     assert noisy_spec.shape == spec.shape
     assert noisy_spec.sum() < spec.sum()
 
 
-def test_time_mask():
+def test_time_mask() -> None:
+    """Test time mask."""
     spec = torch.ones(1, 2048, 100)
     noisy_spec = TimeMask(num_masks=2, size=20, p=1.0)(spec)
     assert noisy_spec.shape == spec.shape

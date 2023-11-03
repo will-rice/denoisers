@@ -3,7 +3,7 @@ from denoisers.metrics import calculate_pesq
 from denoisers.testing import sine_wave
 
 
-def test_calculate_pesq():
+def test_calculate_pesq() -> None:
     """Test calculate_pesq."""
     audio = sine_wave(800, 1, 16000)
     pred = sine_wave(800, 1, 16000)
