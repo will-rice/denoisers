@@ -1,5 +1,5 @@
 """WaveUNet configuration file."""
-from typing import Any, Tuple
+from typing import Any
 
 from transformers import PretrainedConfig
 
@@ -11,7 +11,7 @@ class UNet1DConfig(PretrainedConfig):
 
     def __init__(
         self,
-        channels: Tuple[int, ...] = (
+        channels: tuple[int, ...] = (
             32,
             64,
             96,

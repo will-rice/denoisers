@@ -1,13 +1,12 @@
 """Unet1D Data modules."""
 import os
-from typing import List, NamedTuple, Optional
+from typing import NamedTuple, Optional
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
 from torch import Tensor, nn
-from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 from denoisers import transforms
@@ -47,15 +46,16 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
-        """Setup datasets."""
+        """Split datasets."""
         train_split = int(np.floor(len(self._dataset) * 0.95))  # type: ignore
         val_split = int(np.ceil(len(self._dataset) * 0.05))  # type: ignore
 
         self.train_dataset, self.val_dataset = torch.utils.data.random_split(
-            self._dataset, lengths=(train_split, val_split)
+            self._dataset,
+            lengths=(train_split, val_split),
         )
 
-    def pad_collate_fn(self, paths: List[str]) -> Batch:
+    def pad_collate_fn(self, paths: list[str]) -> Batch:
         """Pad collate function."""
         audios = []
         noisy_audio = []
@@ -76,7 +76,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
 
             if audio_length < self._max_length:
                 pad_length = self._max_length - audio_length
-                audio = F.pad(audio, (0, pad_length))
+                audio = nn.functional.pad(audio, (0, pad_length))
             else:
                 audio = audio[:, : self._max_length]
 
@@ -93,7 +93,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         )
 
     def train_dataloader(self) -> DataLoader:
-        """Train dataloader."""
+        """Initialize train dataloader."""
         return DataLoader(
             self.train_dataset,
             batch_size=self._batch_size,
@@ -103,7 +103,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         )
 
     def val_dataloader(self) -> DataLoader:
-        """Validation dataloader."""
+        """Initialize validation dataloader."""
         return DataLoader(
             self.val_dataset,
             batch_size=self._batch_size,

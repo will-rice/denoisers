@@ -9,7 +9,8 @@ from denoisers.modeling.waveunet.model import (
 )
 
 
-def test_config():
+def test_config() -> None:
+    """Test config."""
     config = WaveUNetConfig(
         max_length=8192,
         sample_rate=16000,
@@ -30,7 +31,7 @@ def test_config():
     assert config.autoencoder is False
 
 
-def test_model():
+def test_model() -> None:
     """Test model."""
     config = WaveUNetConfig(
         max_length=16384,
@@ -50,7 +51,7 @@ def test_model():
     assert audio.shape == recon.shape
 
 
-def test_lightning_module():
+def test_lightning_module() -> None:
     """Test lightning module."""
     config = WaveUNetConfig(
         max_length=16384,

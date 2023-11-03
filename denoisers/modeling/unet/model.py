@@ -1,11 +1,10 @@
 """Adapted from https://github.com/milesial/Pytorch-UNet."""
-from typing import Any, Dict, Optional, Union
+from typing import Any, Optional, Union
 
 import pytorch_lightning as pl
 import torch
+import torchmetrics
 from torch import Tensor, nn
-from torch.nn import functional as F
-from torchmetrics import functional as M
 
 from denoisers.datamodules.unet import Batch
 from denoisers.utils import plot_image_batch
@@ -76,7 +75,7 @@ class UNet(pl.LightningModule):
         phase = torch.angle(stft)
         zero = torch.tensor(0.0).to(mag_stft.dtype)
         phase_stft = torch.complex(mag_stft, zero) * torch.exp(
-            torch.complex(zero, phase)
+            torch.complex(zero, phase),
         )
         inv_audio = torch.istft(
             phase_stft,
@@ -88,12 +87,16 @@ class UNet(pl.LightningModule):
         return inv_audio
 
     def training_step(
-        self, batch: Batch, batch_idx: Any
-    ) -> Union[Tensor, Dict[str, Any]]:
+        self,
+        batch: Batch,
+        batch_idx: Any,
+    ) -> Union[Tensor, dict[str, Any]]:
         """Train step."""
         logits = self(batch.noisy)
-        loss = F.l1_loss(logits, batch.noisy - batch.specs)
-        snr = M.signal_noise_ratio(batch.noisy - logits, batch.specs)
+        loss = nn.functional.l1_loss(logits, batch.noisy - batch.specs)
+        snr = torchmetrics.functional.audio.signal_noise_ratio(
+            batch.noisy - logits, batch.specs
+        )
 
         self.log("train_loss", loss)
         self.log("train_snr", snr)
@@ -101,12 +104,16 @@ class UNet(pl.LightningModule):
         return loss
 
     def validation_step(
-        self, batch: Any, batch_idx: Any
-    ) -> Union[Tensor, Dict[str, Any]]:
+        self,
+        batch: Any,
+        batch_idx: Any,
+    ) -> Union[Tensor, dict[str, Any]]:
         """Val step."""
         logits = self(batch.noisy)
-        loss = F.l1_loss(logits, batch.noisy - batch.specs)
-        snr = M.signal_noise_ratio(batch.noisy - logits, batch.specs)
+        loss = nn.functional.l1_loss(logits, batch.noisy - batch.specs)
+        snr = torchmetrics.functional.audio.signal_noise_ratio(
+            batch.noisy - logits, batch.specs
+        )
 
         self.log("val_loss", loss)
         self.log("val_snr", snr)
@@ -115,11 +122,13 @@ class UNet(pl.LightningModule):
 
         return loss
 
-    def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, Dict[str, Any]]:
+    def test_step(self, batch: Any, batch_idx: Any) -> Union[Tensor, dict[str, Any]]:
         """Test step."""
         logits = self(batch.noisy)
-        loss = F.l1_loss(logits, batch.noisy - batch.specs)
-        snr = M.signal_noise_ratio(batch.noisy - logits, batch.specs)
+        loss = nn.functional.l1_loss(logits, batch.noisy - batch.specs)
+        snr = torchmetrics.functional.audio.signal_noise_ratio(
+            batch.noisy - logits, batch.specs
+        )
 
         self.log("test_loss", loss)
         self.log("test_snr", snr)
@@ -137,7 +146,10 @@ class DoubleConv(nn.Module):
     """Convolution => [BN] => ReLU * 2."""
 
     def __init__(
-        self, in_channels: int, out_channels: int, mid_channels: Optional[int] = None
+        self,
+        in_channels: int,
+        out_channels: int,
+        mid_channels: Optional[int] = None,
     ):
         super().__init__()
         if not mid_channels:
@@ -175,19 +187,27 @@ class UpSampleLayer(nn.Module):
     """UpSample Conv Layer."""
 
     def __init__(
-        self, in_channels: int, out_channels: int, bilinear: Optional[bool] = True
+        self,
+        in_channels: int,
+        out_channels: int,
+        bilinear: Optional[bool] = True,
     ):
         super().__init__()
 
         # if bilinear, use the normal convolutions to reduce the number of channels
         if bilinear:
             self.up: Union[nn.Upsample, nn.ConvTranspose2d] = nn.Upsample(
-                scale_factor=2, mode="bilinear", align_corners=True
+                scale_factor=2,
+                mode="bilinear",
+                align_corners=True,
             )
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
         else:
             self.up = nn.ConvTranspose2d(
-                in_channels, in_channels // 2, kernel_size=2, stride=2
+                in_channels,
+                in_channels // 2,
+                kernel_size=2,
+                stride=2,
             )
             self.conv = DoubleConv(in_channels, out_channels)
 
@@ -195,10 +215,12 @@ class UpSampleLayer(nn.Module):
         """Forward Pass."""
         x1 = self.up(x1)
         # input is CHW
-        diffY = x2.size()[2] - x1.size()[2]
-        diffX = x2.size()[3] - x1.size()[3]
+        diff_y = x2.size()[2] - x1.size()[2]
+        diff_x = x2.size()[3] - x1.size()[3]
 
-        x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2, diffY // 2, diffY - diffY // 2])
+        x1 = nn.functional.pad(
+            x1, [diff_x // 2, diff_x - diff_x // 2, diff_y // 2, diff_y - diff_y // 2]
+        )
         # if you have padding issues, see
         # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
         # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd

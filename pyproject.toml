@@ -29,6 +29,14 @@ known_first_party = ["denoisers"]
 [tool.ruff]
 ignore-init-module-imports = true
 
+ignore = ["S101"]
+
+[tool.ruff.lint]
+select = ["C", "E", "F", "I", "W", "D", "N", "B"]
+
+[tool.ruff.pydocstyle]
+convention = "numpy"
+
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::DeprecationWarning",

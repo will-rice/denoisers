@@ -1,5 +1,5 @@
 """UNet1D model."""
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 import torch
 from pytorch_lightning import LightningModule
@@ -37,8 +37,10 @@ class UNet1DLightningModule(LightningModule):
         return self.model(inputs)
 
     def training_step(
-        self, batch: Batch, batch_idx: Any
-    ) -> Union[Tensor, Dict[str, Any]]:
+        self,
+        batch: Batch,
+        batch_idx: Any,
+    ) -> Union[Tensor, dict[str, Any]]:
         """Train step."""
         outputs = self(batch.noisy)
 
@@ -57,8 +59,10 @@ class UNet1DLightningModule(LightningModule):
         return loss
 
     def validation_step(
-        self, batch: Any, batch_idx: Any
-    ) -> Union[Tensor, Dict[str, Any]]:
+        self,
+        batch: Any,
+        batch_idx: Any,
+    ) -> Union[Tensor, dict[str, Any]]:
         """Val step."""
         outputs = self(batch.noisy)
 
@@ -82,7 +86,7 @@ class UNet1DLightningModule(LightningModule):
                 batch.noisy.detach(),
                 outputs.logits.detach(),
                 batch.lengths.detach(),
-            )
+            ),
         }
 
         return loss
@@ -116,7 +120,9 @@ class UNet1DLightningModule(LightningModule):
     def configure_optimizers(self) -> Any:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(
-            self.model.parameters(), lr=1e-4, weight_decay=1e-2
+            self.model.parameters(),
+            lr=1e-4,
+            weight_decay=1e-2,
         )
 
         return optimizer
@@ -162,7 +168,7 @@ class UNet1D(nn.Module):
 
     def __init__(
         self,
-        channels: Tuple[int, ...] = (
+        channels: tuple[int, ...] = (
             32,
             64,
             96,
@@ -199,7 +205,7 @@ class UNet1D(nn.Module):
                     activation=activation,
                 )
                 for i in range(len(channels) - 1)
-            ]
+            ],
         )
         self.middle = MidBlock1D(
             in_channels=channels[-1],
@@ -220,7 +226,7 @@ class UNet1D(nn.Module):
                     activation=activation,
                 )
                 for i in reversed(range(len(channels) - 1))
-            ]
+            ],
         )
         self.out_conv = nn.Sequential(
             nn.Conv1d(channels[0] + 1, 1, kernel_size=1, padding=0),

@@ -4,10 +4,10 @@ from typing import Any, Optional
 import librosa
 import matplotlib.pyplot as plt
 import torch
-import torchaudio.transforms as T
+import torchaudio
 import wandb
 
-SPEC_FN = T.Spectrogram(
+SPEC_FN = torchaudio.transforms.Spectrogram(
     n_fft=2048,
     win_length=1024,
     hop_length=256,
@@ -110,6 +110,6 @@ def log_audio_batch(
                 f"{name}_clean": wandb.Audio(np_clean, sample_rate=sample_rate),
                 f"{name}_noisy": wandb.Audio(np_noisy, sample_rate=sample_rate),
                 f"{name}_pred": wandb.Audio(np_preds, sample_rate=sample_rate),
-            }
-        }
+            },
+        },
     )

@@ -8,6 +8,7 @@ from denoisers.testing import sine_wave
 
 
 def test_audio_dataset(tmpdir):
+    """Test audio dataset."""
     save_root = Path(tmpdir) / "test_dataset"
     save_root.mkdir(exist_ok=True, parents=True)
     save_path = save_root / "sample.flac"
