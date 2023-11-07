@@ -43,7 +43,7 @@ def test_model() -> None:
 
     audio = torch.randn(1, 1, config.max_length)
     with torch.no_grad():
-        recon = model(audio).logits
+        recon = model(audio).audio
 
     assert isinstance(recon, torch.Tensor)
     assert audio.shape == recon.shape
@@ -65,7 +65,7 @@ def test_lightning_module() -> None:
 
     # test forward
     with torch.no_grad():
-        recon = model(audio).logits
+        recon = model(audio).audio
 
     assert isinstance(recon, torch.Tensor)
     assert audio.shape == recon.shape

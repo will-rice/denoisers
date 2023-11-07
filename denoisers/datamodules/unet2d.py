@@ -15,7 +15,7 @@ from denoisers import transforms
 class Batch(NamedTuple):
     """Batch of inputs."""
 
-    specs: Tensor
+    audio: Tensor
     noisy: Tensor
     lengths: Tensor
 
@@ -30,9 +30,6 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         num_workers: int = os.cpu_count() // 2,  # type: ignore
         max_length: int = 10,
         sample_rate: int = 24000,
-        n_fft: int = 2048,
-        win_length: int = 1024,
-        hop_length: int = 256,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -41,19 +38,11 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._batch_size = batch_size
         self._num_workers = num_workers
         # we don't use sample_rate here for divisibility
-        self._max_length = 16384 * max_length
+        self._max_length = max_length
         self._sample_rate = sample_rate
-        self._n_fft = n_fft
-        self._win_length = win_length
-        self._hop_length = hop_length
         self._transforms = nn.Sequential(
             transforms.ReverbFromSoundboard(p=0.97),
             transforms.GaussianNoise(p=1.0),
-        )
-        self._spec_fn = torchaudio.transforms.Spectrogram(
-            n_fft=self._n_fft,
-            win_length=self._win_length,
-            hop_length=self._hop_length,
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
@@ -68,7 +57,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
 
     def pad_collate_fn(self, paths: list[str]) -> Batch:
         """Pad collate function."""
-        specs = []
+        audios = []
         noisy_audio = []
         lengths = []
         for path in paths:
@@ -92,14 +81,13 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 audio = audio[:, : self._max_length]
 
             noisy = self._transforms(audio.clone())
-            noisy = self._spec_fn(noisy)
-            spec = self._spec_fn(audio)
-            specs.append(spec)
+
+            audios.append(audio)
             noisy_audio.append(noisy)
             lengths.append(torch.tensor(audio_length))
 
         return Batch(
-            specs=torch.stack(specs),
+            audio=torch.stack(audios),
             noisy=torch.stack(noisy_audio),
             lengths=torch.stack(lengths),
         )

@@ -218,3 +218,119 @@ class Activation(nn.Module):
         """Forward Pass."""
         x = self.activation(x)
         return x
+
+
+class Upsample2D(nn.Module):
+    """A 2D upsampling layer with an optional convolution.
+
+    Parameters
+    ----------
+        in_channels (`int`):
+            number of channels in the inputs and outputs.
+        out_channels (`int`, optional):
+            number of output channels. Defaults to `channels`.
+        use_conv (`bool`, default `False`):
+            option to use a convolution.
+        use_conv_transpose (`bool`, default `False`):
+            option to use a convolution transpose.
+
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: Optional[int] = None,
+        kernel_size: int = 3,
+        use_conv: bool = False,
+        use_conv_transpose: bool = False,
+        padding: int = 1,
+        bias: bool = True,
+    ):
+        super().__init__()
+        self.channels = in_channels
+        self.out_channels = out_channels or in_channels
+        self.use_conv = use_conv
+        self.use_conv_transpose = use_conv_transpose
+
+        self.conv: Any = None
+        if use_conv_transpose:
+            self.conv = nn.ConvTranspose2d(
+                in_channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                stride=2,
+                padding=padding,
+                bias=bias,
+            )
+        elif use_conv:
+            self.conv = nn.Conv2d(
+                self.channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                padding=padding,
+                bias=bias,
+            )
+
+    def forward(self, inputs: Tensor) -> Tensor:
+        """Forward pass."""
+        if self.use_conv_transpose:
+            return self.conv(inputs)
+
+        outputs = nn.functional.interpolate(inputs, scale_factor=2.0, mode="nearest")
+
+        if self.use_conv:
+            outputs = self.conv(outputs)
+
+        return outputs
+
+
+class Downsample2D(nn.Module):
+    """A 2D downsampling layer with an optional convolution.
+
+    Parameters
+    ----------
+        in_channels (`int`):
+            number of channels in the inputs and outputs.
+        out_channels (`int`, optional):
+            number of output channels. Defaults to `channels`.
+        kernel_size (`int`, default `3`):
+            kernel size for the convolution.
+        stride (`int`, default `2`):
+            stride for the convolution.
+        use_conv (`bool`, default `False`):
+            option to use a convolution.
+        padding (`int`, default `1`):
+            padding for the convolution.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: Optional[int] = None,
+        kernel_size: int = 3,
+        stride: int = 2,
+        use_conv: bool = False,
+        padding: int = 1,
+        bias: bool = True,
+    ):
+        super().__init__()
+        self.channels = in_channels
+        self.out_channels = out_channels or in_channels
+        self.use_conv = use_conv
+
+        self.conv: Any = None
+        if use_conv:
+            self.conv = nn.Conv2d(
+                self.channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=bias,
+            )
+        else:
+            self.conv = nn.AvgPool2d(kernel_size=stride, stride=stride)
+
+    def forward(self, inputs: Tensor) -> Tensor:
+        """Forward pass."""
+        return self.conv(inputs)

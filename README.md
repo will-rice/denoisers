@@ -32,9 +32,9 @@ padded = torch.nn.functional.pad(audio, (0, padding))
 
 clean = []
 for i in tqdm(range(0, padded.shape[-1], chunk_size)):
-    audio_chunk = padded[:, i:i+chunk_size]
+    audio_chunk = padded[:, i:i + chunk_size]
     with torch.no_grad():
-        clean_chunk = model(audio_chunk[None]).logits
+        clean_chunk = model(audio_chunk[None]).audio
     clean.append(clean_chunk.squeeze(0))
 
 denoised = torch.concat(clean, 1)[:, :audio.shape[-1]]

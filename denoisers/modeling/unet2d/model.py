@@ -1,4 +1,4 @@
-"""UNet1D model."""
+"""Adapted from https://github.com/milesial/Pytorch-UNet."""
 from typing import Any, Optional, Union
 
 import torch
@@ -12,20 +12,20 @@ from torchmetrics.audio import (
 )
 from transformers import PreTrainedModel
 
-from denoisers.datamodules.unet1d import Batch
+from denoisers.datamodules.unet2d import Batch
 from denoisers.metrics import calculate_pesq
-from denoisers.modeling.unet1d.config import UNet1DConfig
-from denoisers.modeling.unet1d.modules import DownBlock1D, MidBlock1D, UpBlock1D
+from denoisers.modeling.unet2d.config import UNet2DConfig
+from denoisers.modeling.unet2d.modules import DownBlock2D, MidBlock2D, UpBlock2D
 from denoisers.utils import log_audio_batch, plot_image_from_audio
 
 
-class UNet1DLightningModule(LightningModule):
-    """UNet1D Lightning Module."""
+class UNet2DLightningModule(LightningModule):
+    """UNet2D Lightning Module."""
 
-    def __init__(self, config: UNet1DConfig) -> None:
+    def __init__(self, config: UNet2DConfig) -> None:
         super().__init__()
         self.config = config
-        self.model = UNet1DModel(config)
+        self.model = UNet2DModel(config)
         self.loss_fn = nn.L1Loss()
         self.snr = ScaleInvariantSignalNoiseRatio()
         self.sdr = ScaleInvariantSignalDistortionRatio()
@@ -59,13 +59,13 @@ class UNet1DLightningModule(LightningModule):
     def validation_step(
         self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, dict[str, Any]]:
-        """Val step."""
+        """Validate step."""
         outputs = self(batch.noisy)
 
         if self.autoencoder:
-            loss = self.loss_fn(outputs.audio, batch.audio)
+            loss = self.loss_fn(outputs.mag_stft, batch.specs)
         else:
-            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
+            loss = self.loss_fn(outputs.noise, batch.noisy - batch.specs)
 
         snr = self.snr(outputs.audio, batch.audio)
         sdr = self.sdr(outputs.audio, batch.audio)
@@ -121,7 +121,7 @@ class UNet1DLightningModule(LightningModule):
         return optimizer
 
 
-class UNet1DModelOutputs:
+class UNet2DModelOutputs:
     """Class for holding model outputs."""
 
     def __init__(self, audio: Tensor, noise: Optional[Tensor] = None) -> None:
@@ -129,15 +129,15 @@ class UNet1DModelOutputs:
         self.noise = noise
 
 
-class UNet1DModel(PreTrainedModel):
+class UNet2DModel(PreTrainedModel):
     """Pretrained UNet1D Model."""
 
-    config_class = UNet1DConfig
+    config_class = UNet2DConfig
 
-    def __init__(self, config: UNet1DConfig) -> None:
+    def __init__(self, config: UNet2DConfig) -> None:
         super().__init__(config)
         self.config = config
-        self.model = UNet1D(
+        self.model = UNet2D(
             channels=config.channels,
             kernel_size=config.kernel_size,
             num_groups=config.num_groups,
@@ -145,43 +145,52 @@ class UNet1DModel(PreTrainedModel):
             dropout=config.dropout,
         )
 
-    def forward(self, inputs: Tensor) -> UNet1DModelOutputs:
+    def forward(self, audio: Tensor) -> UNet2DModelOutputs:
         """Forward Pass."""
+        stft = torch.stft(
+            audio.squeeze(1),
+            n_fft=self.config.n_fft,
+            win_length=self.config.win_length,
+            hop_length=self.config.hop_length,
+            return_complex=True,
+        ).unsqueeze(1)
+        noisy_mag_stft = torch.abs(stft)
+
         if self.config.autoencoder:
-            logits = self.model(inputs)
-            return UNet1DModelOutputs(audio=logits)
+            mag_stft = self.model(noisy_mag_stft)
+            noise = noisy_mag_stft - mag_stft
         else:
-            noise = self.model(inputs)
-            denoised = inputs - noise
-            return UNet1DModelOutputs(audio=denoised, noise=noise)
+            noise = self.model(noisy_mag_stft)
+            print(noisy_mag_stft.shape, noise.shape)
+            mag_stft = noisy_mag_stft - noise
+
+        phase = torch.angle(stft)
+        zero = torch.tensor(0.0).to(mag_stft.dtype)
+        phase_stft = torch.complex(mag_stft, zero) * torch.exp(
+            torch.complex(zero, phase),
+        )
+        inv_audio = torch.istft(
+            phase_stft,
+            n_fft=self.config.n_fft,
+            win_length=self.config.win_length,
+            hop_length=self.config.hop_length,
+        )
+        return UNet2DModelOutputs(audio=inv_audio, noise=noise)
 
 
-class UNet1D(nn.Module):
-    """UNet1D model."""
+class UNet2D(nn.Module):
+    """UNet2D model."""
 
     def __init__(
         self,
-        channels: tuple[int, ...] = (
-            32,
-            64,
-            96,
-            128,
-            160,
-            192,
-            224,
-            256,
-            288,
-            320,
-            352,
-            384,
-        ),
+        channels: tuple[int, ...] = (32, 64, 128, 256, 512),
         kernel_size: int = 3,
         num_groups: int = 32,
         activation: str = "silu",
         dropout: float = 0.1,
     ) -> None:
         super().__init__()
-        self.in_conv = nn.Conv1d(
+        self.in_conv = nn.Conv2d(
             1,
             channels[0],
             kernel_size=kernel_size,
@@ -189,7 +198,7 @@ class UNet1D(nn.Module):
         )
         self.encoder_layers = nn.ModuleList(
             [
-                DownBlock1D(
+                DownBlock2D(
                     channels[i],
                     out_channels=channels[i + 1],
                     kernel_size=kernel_size,
@@ -200,7 +209,7 @@ class UNet1D(nn.Module):
                 for i in range(len(channels) - 1)
             ],
         )
-        self.middle = MidBlock1D(
+        self.middle = MidBlock2D(
             in_channels=channels[-1],
             out_channels=channels[-1],
             kernel_size=kernel_size,
@@ -210,7 +219,7 @@ class UNet1D(nn.Module):
         )
         self.decoder_layers = nn.ModuleList(
             [
-                UpBlock1D(
+                UpBlock2D(
                     channels[i + 1],
                     out_channels=channels[i],
                     kernel_size=kernel_size,
@@ -222,8 +231,7 @@ class UNet1D(nn.Module):
             ],
         )
         self.out_conv = nn.Sequential(
-            nn.Conv1d(channels[0] + 1, 1, kernel_size=1, padding=0),
-            nn.Tanh(),
+            nn.Conv2d(channels[0], 1, kernel_size=1, padding=0),
         )
 
     def forward(self, inputs: Tensor) -> Tensor:
@@ -238,9 +246,9 @@ class UNet1D(nn.Module):
         out = self.middle(out)
 
         for skip, layer in zip(reversed(skips), self.decoder_layers):
-            out = layer(out + skip)
+            skip = nn.functional.pad(skip, (0, out.size(-2), 0, out.size(-1)))
+            out = layer(out + skip[..., : out.shape[-2], : out.shape[-1]])
 
-        out = torch.concat([out, inputs], dim=1)
         out = self.out_conv(out)
 
         return out.float()
