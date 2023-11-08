@@ -43,6 +43,9 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._transforms = nn.Sequential(
             transforms.ReverbFromSoundboard(p=1.0, sample_rate=sample_rate),
             transforms.GaussianNoise(p=1.0),
+            transforms.NoiseFromFile(
+                "/data/bbc-sounds/", p=1.0, sample_rate=sample_rate
+            ),
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:

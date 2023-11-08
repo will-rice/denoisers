@@ -13,7 +13,7 @@ from torch import Tensor, nn
 class GaussianNoise(nn.Module):
     """Gaussian Noise Transform."""
 
-    def __init__(self, p: float = 0.5, db_min: int = 1, db_max: int = 30) -> None:
+    def __init__(self, p: float = 0.5, db_min: int = -5, db_max: int = 20) -> None:
         super().__init__()
         self.p = p
         self.db_min = db_min
@@ -273,18 +273,21 @@ class NoiseFromFile(nn.Module):
 
     def __init__(
         self,
-        root: Path,
+        root: Union[Path, str],
+        db_min: int = -5,
+        db_max: int = 20,
         p: float = 1.0,
         sample_rate: int = 24000,
-        num_samples: int = 1000,
     ) -> None:
         super().__init__()
+        if isinstance(root, str):
+            root = Path(root)
         self.root = root
+        self.db_min = db_min
+        self.db_max = db_max
         self.p = p
         self.sample_rate = sample_rate
-        noise_paths = random.choices(list(root.glob("**/*.flac")), k=num_samples)
-        self.noises = [torchaudio.load(noise)[0] for noise in noise_paths]
-        print(f"Loaded {len(self.noises)} noises")
+        self.noise_paths = list(root.glob("**/*.flac"))
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
         """Forward Pass."""
@@ -292,8 +295,16 @@ class NoiseFromFile(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-            noise = random.choice(self.noises).to(x.device)
-            x = x + noise[:, : x.size(1)]
+            noise, sr = torchaudio.load(random.choice(self.noise_paths))
+
+            if sr != self.sample_rate:
+                noise = torchaudio.functional.resample(noise, sr, self.sample_rate)
+
+            if noise.size(-1) < x.size(-1):
+                noise = nn.functional.pad(noise, (0, x.size(-1) - noise.size(-1)))
+
+            db = torch.randint(self.db_min, self.db_max, (1,))
+            x = torchaudio.functional.add_noise(x, noise[:, : x.size(-1)], snr=db)
 
         return x
 

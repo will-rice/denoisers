@@ -13,6 +13,7 @@ from torchmetrics.audio import (
 from transformers import PreTrainedModel
 
 from denoisers.datamodules.unet1d import Batch
+from denoisers.losses import STFTLoss
 from denoisers.metrics import calculate_pesq
 from denoisers.modeling.unet1d.config import UNet1DConfig
 from denoisers.modeling.unet1d.modules import DownBlock1D, MidBlock1D, UpBlock1D
@@ -27,6 +28,7 @@ class UNet1DLightningModule(LightningModule):
         self.config = config
         self.model = UNet1DModel(config)
         self.loss_fn = nn.L1Loss()
+        self.stft_loss_fn = STFTLoss()
         self.snr = ScaleInvariantSignalNoiseRatio()
         self.sdr = ScaleInvariantSignalDistortionRatio()
         self.autoencoder = self.config.autoencoder
@@ -45,14 +47,19 @@ class UNet1DLightningModule(LightningModule):
         outputs = self(batch.noisy)
 
         if self.autoencoder:
-            loss = self.loss_fn(outputs.audio, batch.audio)
+            recon_loss = self.loss_fn(outputs.audio, batch.audio)
         else:
-            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
+            recon_loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
+
+        stft_loss = self.stft_loss_fn(outputs.audio, batch.audio)
+        loss = recon_loss + stft_loss
 
         snr = self.snr(outputs.audio, batch.audio)
         sdr = self.sdr(outputs.audio, batch.audio)
 
         self.log("train_loss", loss, prog_bar=True)
+        self.log("train_recon_loss", recon_loss)
+        self.log("train_stft_loss", stft_loss)
         self.log("train_snr", snr)
         self.log("train_sdr", sdr)
 
@@ -67,15 +74,19 @@ class UNet1DLightningModule(LightningModule):
         outputs = self(batch.noisy)
 
         if self.autoencoder:
-            loss = self.loss_fn(outputs.audio, batch.audio)
+            recon_loss = self.loss_fn(outputs.audio, batch.audio)
         else:
-            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
+            recon_loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
+        stft_loss = self.stft_loss_fn(outputs.audio, batch.audio)
+        loss = recon_loss + stft_loss
 
         snr = self.snr(outputs.audio, batch.audio)
         sdr = self.sdr(outputs.audio, batch.audio)
         pesq = calculate_pesq(outputs.audio, batch.audio, self.config.sample_rate)
 
         self.log("val_loss", loss, prog_bar=True)
+        self.log("val_recon_loss", recon_loss)
+        self.log("val_stft_loss", stft_loss)
         self.log("val_snr", snr)
         self.log("val_sdr", sdr)
         self.log("pesq", pesq)
@@ -120,11 +131,8 @@ class UNet1DLightningModule(LightningModule):
     def configure_optimizers(self) -> Any:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=1e-4,
-            weight_decay=1e-2,
+            self.model.parameters(), lr=1e-4, weight_decay=1e-2
         )
-
         return optimizer
 
 

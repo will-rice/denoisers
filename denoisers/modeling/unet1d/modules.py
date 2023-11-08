@@ -143,6 +143,7 @@ class MidBlock1D(nn.Module):
             activation=activation,
             dropout=dropout,
         )
+
         self.attention = nn.MultiheadAttention(out_channels, num_heads=num_heads)
         self.res_block_2 = ResBlock1D(
             in_channels=out_channels,

@@ -128,12 +128,9 @@ def test_noise_from_file(tmpdir) -> None:
     torchaudio.save(save_path / "noise.flac", torch.randn_like(audio), 16000)
     noise, _ = torchaudio.load(save_path / "noise.flac")
 
-    transform = NoiseFromFile(save_path, p=1.0, sample_rate=16000, num_samples=1)
+    transform = NoiseFromFile(save_path, p=1.0, sample_rate=16000, db_min=0, db_max=1)
     noisy_audio = transform(audio.numpy())
-
-    torch.testing.assert_close(noisy_audio, audio + noise)
-    torch.testing.assert_close(noise, noisy_audio - audio)
-    torch.testing.assert_close(audio, noisy_audio - noise)
+    assert audio.shape == noisy_audio.shape
 
 
 def test_reverb_from_file() -> None:
