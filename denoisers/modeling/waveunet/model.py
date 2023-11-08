@@ -46,12 +46,12 @@ class WaveUNetLightningModule(LightningModule):
         outputs = self(batch.noisy)
 
         if self.autoencoder:
-            loss = self.loss_fn(outputs.logits, batch.audio)
+            loss = self.loss_fn(outputs.audio, batch.audio)
         else:
             loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
 
-        snr = self.snr(outputs.logits, batch.audio)
-        sdr = self.sdr(outputs.logits, batch.audio)
+        snr = self.snr(outputs.audio, batch.audio)
+        sdr = self.sdr(outputs.audio, batch.audio)
 
         self.log("train_loss", loss, prog_bar=True)
         self.log("train_snr", snr)
@@ -68,13 +68,13 @@ class WaveUNetLightningModule(LightningModule):
         outputs = self(batch.noisy)
 
         if self.autoencoder:
-            loss = self.loss_fn(outputs.logits, batch.audio)
+            loss = self.loss_fn(outputs.audio, batch.audio)
         else:
             loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
 
-        snr = self.snr(outputs.logits, batch.audio)
-        sdr = self.sdr(outputs.logits, batch.audio)
-        pesq = calculate_pesq(outputs.logits, batch.audio, self.config.sample_rate)
+        snr = self.snr(outputs.audio, batch.audio)
+        sdr = self.sdr(outputs.audio, batch.audio)
+        pesq = calculate_pesq(outputs.audio, batch.audio, self.config.sample_rate)
 
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_snr", snr)
@@ -85,7 +85,7 @@ class WaveUNetLightningModule(LightningModule):
             "outputs": (
                 batch.audio.detach(),
                 batch.noisy.detach(),
-                outputs.logits.detach(),
+                outputs.audio.detach(),
                 batch.lengths.detach(),
             ),
         }
@@ -132,8 +132,8 @@ class WaveUNetLightningModule(LightningModule):
 class WaveUNetModelOutputs:
     """Class for holding model outputs."""
 
-    def __init__(self, logits: Tensor, noise: Optional[Tensor] = None) -> None:
-        self.logits = logits
+    def __init__(self, audio: Tensor, noise: Optional[Tensor] = None) -> None:
+        self.audio = audio
         self.noise = noise
 
 
@@ -156,12 +156,12 @@ class WaveUNetModel(PreTrainedModel):
     def forward(self, inputs: Tensor) -> WaveUNetModelOutputs:
         """Forward Pass."""
         if self.config.autoencoder:
-            logits = self.model(inputs)
-            return WaveUNetModelOutputs(logits=logits)
+            audio = self.model(inputs)
+            return WaveUNetModelOutputs(audio=audio)
         else:
             noise = self.model(inputs)
             denoised = inputs - noise
-            return WaveUNetModelOutputs(logits=denoised, noise=noise)
+            return WaveUNetModelOutputs(audio=denoised, noise=noise)
 
 
 class WaveUNet(nn.Module):
