@@ -13,7 +13,7 @@ from torchmetrics.audio import (
 from transformers import PreTrainedModel
 
 from denoisers.datamodules.unet1d import Batch
-from denoisers.losses import STFTLoss
+from denoisers.losses import MultiResolutionSTFTLoss
 from denoisers.metrics import calculate_pesq
 from denoisers.modeling.unet1d.config import UNet1DConfig
 from denoisers.modeling.unet1d.modules import DownBlock1D, MidBlock1D, UpBlock1D
@@ -28,7 +28,7 @@ class UNet1DLightningModule(LightningModule):
         self.config = config
         self.model = UNet1DModel(config)
         self.loss_fn = nn.L1Loss()
-        self.stft_loss_fn = STFTLoss()
+        self.stft_loss_fn = MultiResolutionSTFTLoss()
         self.snr = ScaleInvariantSignalNoiseRatio()
         self.sdr = ScaleInvariantSignalDistortionRatio()
         self.autoencoder = self.config.autoencoder
@@ -39,9 +39,7 @@ class UNet1DLightningModule(LightningModule):
         return self.model(inputs)
 
     def training_step(
-        self,
-        batch: Batch,
-        batch_idx: Any,
+        self, batch: Batch, batch_idx: Any
     ) -> Union[Tensor, dict[str, Any]]:
         """Train step."""
         outputs = self(batch.noisy)
@@ -51,24 +49,23 @@ class UNet1DLightningModule(LightningModule):
         else:
             recon_loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
 
-        stft_loss = self.stft_loss_fn(outputs.audio, batch.audio)
-        loss = recon_loss + stft_loss
+        sc_loss, mag_loss = self.stft_loss_fn(outputs.audio, batch.audio)
+        loss = recon_loss + sc_loss + mag_loss
 
         snr = self.snr(outputs.audio, batch.audio)
         sdr = self.sdr(outputs.audio, batch.audio)
 
         self.log("train_loss", loss, prog_bar=True)
         self.log("train_recon_loss", recon_loss)
-        self.log("train_stft_loss", stft_loss)
+        self.log("train_sc_loss", sc_loss)
+        self.log("train_mag_loss", mag_loss)
         self.log("train_snr", snr)
         self.log("train_sdr", sdr)
 
         return loss
 
     def validation_step(
-        self,
-        batch: Any,
-        batch_idx: Any,
+        self, batch: Any, batch_idx: Any
     ) -> Union[Tensor, dict[str, Any]]:
         """Val step."""
         outputs = self(batch.noisy)
@@ -77,8 +74,9 @@ class UNet1DLightningModule(LightningModule):
             recon_loss = self.loss_fn(outputs.audio, batch.audio)
         else:
             recon_loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-        stft_loss = self.stft_loss_fn(outputs.audio, batch.audio)
-        loss = recon_loss + stft_loss
+
+        sc_loss, mag_loss = self.stft_loss_fn(outputs.audio, batch.audio)
+        loss = recon_loss + sc_loss + mag_loss
 
         snr = self.snr(outputs.audio, batch.audio)
         sdr = self.sdr(outputs.audio, batch.audio)
@@ -86,7 +84,8 @@ class UNet1DLightningModule(LightningModule):
 
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_recon_loss", recon_loss)
-        self.log("val_stft_loss", stft_loss)
+        self.log("val_sc_loss", sc_loss)
+        self.log("val_mag_loss", mag_loss)
         self.log("val_snr", snr)
         self.log("val_sdr", sdr)
         self.log("pesq", pesq)
