@@ -10,6 +10,7 @@ from torchmetrics.audio import (
     ScaleInvariantSignalDistortionRatio,
     ScaleInvariantSignalNoiseRatio,
 )
+from tqdm import tqdm
 from transformers import PreTrainedModel
 
 from denoisers.datamodules.unet1d import Batch
@@ -120,11 +121,8 @@ class UNet1DLightningModule(LightningModule):
     def configure_optimizers(self) -> Any:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=1e-4,
-            weight_decay=1e-2,
+            self.model.parameters(), lr=1e-4, weight_decay=1e-2
         )
-
         return optimizer
 
 
@@ -161,6 +159,27 @@ class UNet1DModel(PreTrainedModel):
             noise = self.model(inputs)
             denoised = inputs - noise
             return UNet1DModelOutputs(audio=denoised, noise=noise)
+
+    def infer(self, audio: Tensor) -> Tensor:
+        """Infer on audio."""
+        chunk_size = self.config.max_length
+
+        padding = abs(audio.size(-1) % chunk_size - chunk_size)
+        padded = torch.nn.functional.pad(audio, (0, padding))
+
+        clean = []
+        for i in tqdm(range(0, padded.shape[-1], chunk_size)):
+            audio_chunk = padded[:, i : i + chunk_size]
+            with torch.no_grad():
+                if self.config.autoencoder:
+                    clean_chunk = self.model(audio_chunk[None])
+                else:
+                    noise = self.model(audio_chunk[None])
+                    clean_chunk = audio_chunk - noise
+            clean.append(clean_chunk.squeeze(0))
+
+        denoised = torch.concat(clean, 1)[:, : audio.shape[-1]]
+        return denoised
 
 
 class UNet1D(nn.Module):
