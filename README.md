@@ -25,6 +25,9 @@ audio, sr = torchaudio.load("noisy_audio.wav")
 if sr != model.config.sample_rate:
     audio = torchaudio.functional.resample(audio, sr, model.config.sample_rate)
 
+if audio.size(0) > 1:
+    audio = audio.mean(0, keepdim=True)
+
 chunk_size = model.config.max_length
 
 padding = abs(audio.size(-1) % chunk_size - chunk_size)
