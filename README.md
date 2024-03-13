@@ -1,6 +1,6 @@
 # Denoisers
 
-Denoisers is a denoising library for audio with a focus on simplicity and ease of use. There are two major types of architectures available. WaveUNet for waveform denoising and UNet for spectrogram denoising.
+Denoisers is a denoising library for audio with a focus on simplicity and ease of use. There are two major architectures available for waveforms: WaveUNet which follows the [paper](https://arxiv.org/abs/1806.03185) and a custom UNet1D architecture similar to what you would see in diffusion models.
 
 ## Demo
 
