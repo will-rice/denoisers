@@ -4,7 +4,8 @@ Denoisers is a denoising library for audio with a focus on simplicity and ease o
 
 ## Demo
 
-Gradio demo [here](https://wrice-denoisers.hf.space)
+[![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/wrice/denoisers)
+
 
 ## Usage/Examples
 
