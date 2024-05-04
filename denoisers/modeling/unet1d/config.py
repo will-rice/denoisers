@@ -31,7 +31,7 @@ class UNet1DConfig(PretrainedConfig):
         activation: str = "silu",
         autoencoder: bool = False,
         max_length: int = 16384 * 10,
-        sample_rate: int = 48000,
+        sample_rate: int = 32000,
         **kwargs: Any,
     ) -> None:
         self.channels = channels

@@ -1,15 +1,23 @@
 """Unet1D Data modules."""
 import os
+import random
 from typing import NamedTuple, Optional
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
+from audiomentations import (
+    AddColorNoise,
+    AddGaussianNoise,
+    Compose,
+    Gain,
+    Mp3Compression,
+    PitchShift,
+    TimeStretch,
+)
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
-
-from denoisers import transforms
 
 
 class Batch(NamedTuple):
@@ -40,9 +48,15 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         # we don't use sample_rate here for divisibility
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._transforms = nn.Sequential(
-            transforms.ReverbFromSoundboard(p=1.0, sample_rate=sample_rate),
-            transforms.GaussianNoise(p=1.0),
+        self._transforms = Compose(
+            [
+                AddGaussianNoise(p=0.5),
+                AddColorNoise(p=0.5),
+                PitchShift(p=0.5),
+                TimeStretch(p=0.5),
+                Mp3Compression(p=0.5),
+                Gain(p=0.5),
+            ]
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
@@ -78,9 +92,13 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 pad_length = self._max_length - audio_length
                 audio = nn.functional.pad(audio, (0, pad_length))
             else:
-                audio = audio[:, : self._max_length]
+                start_idx = random.randint(0, audio.size(-1) - self._max_length)
+                audio = audio[:, start_idx : start_idx + self._max_length]
 
-            noisy = self._transforms(audio.clone())
+            noisy = self._transforms(
+                audio.clone().numpy().squeeze(0), sample_rate=32000
+            )
+            noisy = torch.from_numpy(noisy.copy()).unsqueeze(0)
 
             audios.append(audio)
             noisy_audio.append(noisy)
