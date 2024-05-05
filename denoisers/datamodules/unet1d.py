@@ -7,17 +7,10 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from audiomentations import (
-    AddColorNoise,
-    AddGaussianNoise,
-    Compose,
-    Gain,
-    Mp3Compression,
-    PitchShift,
-    TimeStretch,
-)
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
+
+from denoisers import transforms
 
 
 class Batch(NamedTuple):
@@ -48,15 +41,9 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         # we don't use sample_rate here for divisibility
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._transforms = Compose(
-            [
-                AddGaussianNoise(p=0.5),
-                AddColorNoise(p=0.5),
-                PitchShift(p=0.5),
-                TimeStretch(p=0.5),
-                Mp3Compression(p=0.5),
-                Gain(p=0.5),
-            ]
+        self._transforms = nn.Sequential(
+            transforms.ReverbFromSoundboard(p=1.0, sample_rate=sample_rate),
+            transforms.GaussianNoise(p=1.0),
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
@@ -95,10 +82,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 start_idx = random.randint(0, audio.size(-1) - self._max_length)
                 audio = audio[:, start_idx : start_idx + self._max_length]
 
-            noisy = self._transforms(
-                audio.clone().numpy().squeeze(0), sample_rate=32000
-            )
-            noisy = torch.from_numpy(noisy.copy()).unsqueeze(0)
+            noisy = self._transforms(audio.clone())
 
             audios.append(audio)
             noisy_audio.append(noisy)

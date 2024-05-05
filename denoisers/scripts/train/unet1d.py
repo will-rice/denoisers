@@ -77,6 +77,7 @@ def main() -> None:
         logger=logger,
         precision="16-mixed",
         accumulate_grad_batches=2,
+        gradient_clip_val=1.0,
         limit_val_batches=10,
         callbacks=[checkpoint_callback, lr_monitor],
     )
