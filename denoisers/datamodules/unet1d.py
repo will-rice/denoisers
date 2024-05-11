@@ -42,7 +42,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._sample_rate = sample_rate
         self._transforms = Compose(
             [
-                AddGaussianNoise(p=0.5),
+                AddGaussianNoise(p=1.0),
                 AddColorNoise(p=0.5),
                 AddBackgroundNoise("/data-fast/no-call-5-sec-chunks/", p=0.5),
             ]
