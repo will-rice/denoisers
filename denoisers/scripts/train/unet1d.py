@@ -75,7 +75,7 @@ def main() -> None:
         val_check_interval=0.1,
         devices=args.num_devices,
         logger=logger,
-        precision="bf16-mixed",
+        precision="16-mixed",
         accumulate_grad_batches=2,
         gradient_clip_val=1.0,
         limit_val_batches=10,
