@@ -7,10 +7,9 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
+from audiomentations import AddBackgroundNoise, AddColorNoise, AddGaussianNoise, Compose
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
-
-from denoisers import transforms
 
 
 class Batch(NamedTuple):
@@ -30,7 +29,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         batch_size: int = 24,
         num_workers: int = os.cpu_count() // 2,  # type: ignore
         max_length: int = 16384 * 10,
-        sample_rate: int = 24000,
+        sample_rate: int = 32000,
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
@@ -41,9 +40,12 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         # we don't use sample_rate here for divisibility
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._transforms = nn.Sequential(
-            transforms.ReverbFromSoundboard(p=1.0, sample_rate=sample_rate),
-            transforms.GaussianNoise(p=1.0),
+        self._transforms = Compose(
+            [
+                AddGaussianNoise(p=0.5),
+                AddColorNoise(p=0.5),
+                AddBackgroundNoise("/data-fast/no-call-5-sec-chunks/", p=0.5),
+            ]
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
@@ -82,7 +84,10 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 start_idx = random.randint(0, audio.size(-1) - self._max_length)
                 audio = audio[:, start_idx : start_idx + self._max_length]
 
-            noisy = self._transforms(audio.clone())
+            noisy = self._transforms(
+                audio.clone().numpy(), sample_rate=self._sample_rate
+            )
+            noisy = torch.from_numpy(noisy.copy())
 
             audios.append(audio)
             noisy_audio.append(noisy)
