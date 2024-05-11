@@ -71,8 +71,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             if sr != self._sample_rate:
                 audio = torchaudio.functional.resample(audio, sr, self._sample_rate)
 
-            audio = audio.mean(1).unsqueeze(1)
-            print(audio.shape)
+            audio = audio.mean(0).unsqueeze(0)
 
             audio_length = min(audio.size(-1), self._max_length)
 
