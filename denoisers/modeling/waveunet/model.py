@@ -247,7 +247,7 @@ class WaveUNet(nn.Module):
         out = self.middle(out)
 
         for skip, layer in zip(reversed(skips), self.decoder_layers):
-            out = torch.concat([out, skip], dim=1)
+            out = torch.concat([out[..., : skip.size(-1)], skip], dim=1)
             out = layer(out)
 
         out = torch.concat([out, inputs], dim=1)
