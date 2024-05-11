@@ -245,7 +245,7 @@ class UNet1D(nn.Module):
         out = self.middle(out)
 
         for skip, layer in zip(reversed(skips), self.decoder_layers):
-            out = layer(out + skip)
+            out = layer(out + skip[..., : out.shape[-1]])
 
         out = torch.concat([out, inputs], dim=1)
         out = self.out_conv(out)
