@@ -85,7 +85,9 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 start_idx = random.randint(0, audio.size(-1) - self._max_length)
                 audio = audio[:, start_idx : start_idx + self._max_length]
 
-            noisy = self._transforms(audio.clone(), sample_rate=self._sample_rate)
+            noisy = self._transforms(
+                audio.clone()[None], sample_rate=self._sample_rate
+            ).squeeze(0)
 
             audios.append(audio)
             noisy_audio.append(noisy)
