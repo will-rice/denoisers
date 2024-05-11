@@ -85,9 +85,9 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 audio = audio[:, start_idx : start_idx + self._max_length]
 
             noisy = self._transforms(
-                audio.clone().numpy(), sample_rate=self._sample_rate
+                audio.clone().squeeze(0).numpy(), sample_rate=self._sample_rate
             )
-            noisy = torch.from_numpy(noisy.copy())
+            noisy = torch.from_numpy(noisy.copy()).unsqueeze(0)
 
             audios.append(audio)
             noisy_audio.append(noisy)
