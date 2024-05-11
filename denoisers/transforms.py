@@ -1,7 +1,7 @@
 """Transforms."""
 import random
 from pathlib import Path
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 import torch
@@ -19,7 +19,9 @@ class GaussianNoise(nn.Module):
         self.db_min = db_min
         self.db_max = db_max
 
-    def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
+    def forward(
+        self, x: Union[Tensor, np.ndarray], sample_rate: Optional[int] = None
+    ) -> Union[Tensor, np.ndarray]:
         """Forward Pass."""
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)

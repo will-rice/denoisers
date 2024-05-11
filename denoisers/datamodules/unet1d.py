@@ -7,9 +7,11 @@ import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from audiomentations import AddBackgroundNoise, AddColorNoise, AddGaussianNoise, Compose
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
+from torch_audiomentations import AddBackgroundNoise, AddColoredNoise, Compose
+
+from denoisers.transforms import GaussianNoise
 
 
 class Batch(NamedTuple):
@@ -42,8 +44,8 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._sample_rate = sample_rate
         self._transforms = Compose(
             [
-                AddGaussianNoise(p=1.0),
-                AddColorNoise(p=0.5),
+                GaussianNoise(p=1.0),
+                AddColoredNoise(p=0.5),
                 AddBackgroundNoise("/data-fast/no-call-5-sec-chunks/", p=0.5),
             ]
         )
@@ -83,10 +85,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 start_idx = random.randint(0, audio.size(-1) - self._max_length)
                 audio = audio[:, start_idx : start_idx + self._max_length]
 
-            noisy = self._transforms(
-                audio.clone().squeeze(0).numpy(), sample_rate=self._sample_rate
-            )
-            noisy = torch.from_numpy(noisy.copy()).unsqueeze(0)
+            noisy = self._transforms(audio.clone(), sample_rate=self._sample_rate)
 
             audios.append(audio)
             noisy_audio.append(noisy)
