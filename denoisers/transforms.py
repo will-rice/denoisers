@@ -23,7 +23,6 @@ class GaussianNoise(nn.Module):
         self, x: Union[Tensor, np.ndarray], sample_rate: Optional[int] = None
     ) -> Union[Tensor, np.ndarray]:
         """Forward Pass."""
-        print(x.shape)
         if isinstance(x, np.ndarray):
             x = torch.from_numpy(x)
 

@@ -11,8 +11,6 @@ from torch import Tensor, nn
 from torch.utils.data import DataLoader
 from torch_audiomentations import AddBackgroundNoise, AddColoredNoise, Compose
 
-from denoisers.transforms import GaussianNoise
-
 
 class Batch(NamedTuple):
     """Batch of inputs."""
@@ -44,8 +42,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._sample_rate = sample_rate
         self._transforms = Compose(
             [
-                GaussianNoise(p=1.0),
-                AddColoredNoise(p=0.5),
+                AddColoredNoise(p=1.0),
                 AddBackgroundNoise("/data-fast/no-call-5-sec-chunks/", p=0.5),
             ]
         )
