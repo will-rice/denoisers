@@ -27,7 +27,7 @@ def main() -> None:
         "--num_devices",
         default=1 if torch.cuda.is_available() else None,
     )
-    parser.add_argument("--batch_size", default=64, type=int)
+    parser.add_argument("--batch_size", default=32, type=int)
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--log_path", default="logs", type=Path)
     parser.add_argument("--checkpoint_path", default=None, type=Path)
@@ -75,7 +75,7 @@ def main() -> None:
         val_check_interval=0.1,
         devices=args.num_devices,
         logger=logger,
-        precision="16-mixed",
+        precision="bf16-mixed",
         accumulate_grad_batches=2,
         limit_val_batches=10,
         callbacks=[checkpoint_callback, lr_monitor],
