@@ -51,7 +51,8 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 AddGaussianNoise(p=0.5),
                 AddShortNoises("/data-fast/birdclef-2024/background-noise", p=0.5),
                 AddBackgroundNoise("/data-fast/birdclef-2024/background-noise", p=0.5),
-            ]
+            ],
+            shuffle=True,
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
