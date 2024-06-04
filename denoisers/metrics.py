@@ -6,6 +6,7 @@ from pesq import cypesq
 from torch import Tensor
 
 
+@torch.no_grad()
 def calculate_pesq(pred: Tensor, true: Tensor, sample_rate: int = 24000) -> Tensor:
     """Calculate PESQ."""
     pred_resample = torchaudio.functional.resample(pred, sample_rate, 16000)

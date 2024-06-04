@@ -26,6 +26,7 @@ class UNet1DConfig(PretrainedConfig):
             384,
         ),
         kernel_size: int = 3,
+        norm_type: str = "group",
         num_groups: int = 32,
         dropout: float = 0.1,
         activation: str = "silu",

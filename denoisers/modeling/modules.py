@@ -1,6 +1,8 @@
 """Modules for the denoiser models."""
+import numbers
 from typing import Any, Optional
 
+import torch
 from torch import Tensor, nn
 
 
@@ -218,3 +220,82 @@ class Activation(nn.Module):
         """Forward Pass."""
         x = self.activation(x)
         return x
+
+
+class Normalization(nn.Module):
+    """Normalization Layer."""
+
+    def __init__(
+        self,
+        in_channels: int,
+        eps: float = 1e-5,
+        num_groups: int = 32,
+        elementwise_affine: bool = True,
+        norm_type: str = "rms",
+    ):
+        super().__init__()
+        if norm_type == "group":
+            self.norm: nn.Module = nn.GroupNorm(num_groups, in_channels)
+        elif norm_type == "batch":
+            self.norm = nn.BatchNorm1d(in_channels, eps=eps)
+        elif norm_type == "layer":
+            self.norm = LayerNorm(
+                in_channels, eps=eps, elementwise_affine=elementwise_affine
+            )
+        elif norm_type == "rms":
+            self.norm = RMSNorm(
+                in_channels, eps=eps, elementwise_affine=elementwise_affine
+            )
+        else:
+            raise ValueError(f"{norm_type} normalization is not supported.")
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward pass."""
+        x = self.norm(x)
+        return x
+
+
+class LayerNorm(nn.LayerNorm):
+    """Channels First Layer Normalization."""
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward pass."""
+        x = x.transpose(2, 1)
+        x = super().forward(x)
+        x = x.transpose(2, 1)
+        return x
+
+
+class RMSNorm(nn.Module):
+    """Diffusers Root Mean Square Normalization Layer."""
+
+    def __init__(self, dim: int, eps: float, elementwise_affine: bool = True):
+        super().__init__()
+
+        self.eps = eps
+
+        if isinstance(dim, numbers.Integral):
+            dim = (dim,)
+
+        self.dim = torch.Size(dim)
+
+        if elementwise_affine:
+            self.weight = nn.Parameter(torch.ones(dim))
+        else:
+            self.weight = None
+
+    def forward(self, hidden_states: Tensor) -> Tensor:
+        """Forward pass."""
+        input_dtype = hidden_states.dtype
+        variance = hidden_states.to(torch.float32).pow(2).mean(-1, keepdim=True)
+        hidden_states = hidden_states * torch.rsqrt(variance + self.eps)
+
+        if self.weight is not None:
+            # convert into half-precision if necessary
+            if self.weight.dtype in [torch.float16, torch.bfloat16]:
+                hidden_states = hidden_states.to(self.weight.dtype)
+            hidden_states = hidden_states * self.weight
+        else:
+            hidden_states = hidden_states.to(input_dtype)
+
+        return hidden_states
