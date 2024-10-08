@@ -1,20 +1,15 @@
 """Unet1D Data modules."""
-import os
+from pathlib import Path
 from typing import NamedTuple, Optional
 
 import numpy as np
 import pytorch_lightning as pl
 import torch
 import torchaudio
-from audiomentations import (
-    AddBackgroundNoise,
-    AddColorNoise,
-    AddGaussianNoise,
-    AddShortNoises,
-    Compose,
-)
 from torch import Tensor, nn
 from torch.utils.data import DataLoader
+
+from denoisers import transforms
 
 
 class Batch(NamedTuple):
@@ -32,7 +27,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self,
         dataset: torch.utils.data.Dataset,
         batch_size: int = 24,
-        num_workers: int = os.cpu_count() // 2,  # type: ignore
+        num_workers: int = 12,
         max_length: int = 16384 * 10,
         sample_rate: int = 24000,
     ) -> None:
@@ -45,14 +40,12 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         # we don't use sample_rate here for divisibility
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._transforms = Compose(
-            [
-                AddColorNoise(p=0.5),
-                AddGaussianNoise(p=0.5),
-                AddShortNoises("/data-fast/birdclef-2024/background-noise", p=0.5),
-                AddBackgroundNoise("/data-fast/birdclef-2024/background-noise", p=0.5),
-            ],
-            shuffle=True,
+        self._transforms = nn.Sequential(
+            transforms.ReverbFromSoundboard(p=0.5, sample_rate=sample_rate),
+            transforms.GaussianNoise(p=1.0),
+            transforms.NoiseFromFile(
+                Path("/data-fast/birdclef-2024/background-noise"), p=1.0
+            ),
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
@@ -90,10 +83,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
             else:
                 audio = audio[:, : self._max_length]
 
-            noisy = self._transforms(
-                audio.clone().squeeze().numpy(), sample_rate=self._sample_rate
-            )
-            noisy = torch.from_numpy(noisy).unsqueeze(0)
+            noisy = self._transforms(audio.clone())
 
             audios.append(audio)
             noisy_audio.append(noisy)

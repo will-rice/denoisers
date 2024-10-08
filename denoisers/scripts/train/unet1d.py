@@ -7,7 +7,7 @@ import torch
 from pytorch_lightning import loggers
 
 from denoisers.datamodules.unet1d import AudioFromFileDataModule
-from denoisers.datasets.audio import AudioDataset
+from denoisers.datasets.xeno_canto import XenoCantoDataset
 from denoisers.modeling.unet1d.config import UNet1DConfig
 from denoisers.modeling.unet1d.model import UNet1DLightningModule
 
@@ -43,7 +43,7 @@ def main() -> None:
     config = UNet1DConfig()
     model = UNet1DLightningModule(config)
 
-    dataset = AudioDataset(args.data_path)
+    dataset = XenoCantoDataset(args.data_path)
     datamodule = AudioFromFileDataModule(
         dataset,
         batch_size=args.batch_size,

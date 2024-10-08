@@ -275,16 +275,14 @@ class NoiseFromFile(nn.Module):
         self,
         root: Path,
         p: float = 1.0,
-        sample_rate: int = 24000,
+        sample_rate: int = 32000,
         num_samples: int = 1000,
     ) -> None:
         super().__init__()
         self.root = root
         self.p = p
         self.sample_rate = sample_rate
-        noise_paths = random.choices(list(root.glob("**/*.flac")), k=num_samples)
-        self.noises = [torchaudio.load(noise)[0] for noise in noise_paths]
-        print(f"Loaded {len(self.noises)} noises")
+        self.noise_paths = list(root.glob("**/*.flac"))
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
         """Forward Pass."""
@@ -292,7 +290,12 @@ class NoiseFromFile(nn.Module):
             x = torch.from_numpy(x)
 
         if random.random() < self.p:
-            noise = random.choice(self.noises).to(x.device)
+            noise_path = random.choice(self.noise_paths)
+            noise, sr = torchaudio.load(noise_path)
+            if sr != self.sample_rate:
+                noise = torchaudio.functional.resample(noise, sr, self.sample_rate)
+            if noise.shape[-1] < x.shape[-1]:
+                noise = noise.repeat(1, x.shape[-1] // noise.shape[-1] + 1)
             x = x + noise[:, : x.size(1)]
 
         return x

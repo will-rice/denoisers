@@ -156,8 +156,7 @@ class MidBlock1D(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         x = self.res_block_1(x)
-        x = self.attention(x.transpose(2, 1), x.transpose(2, 1), x.transpose(2, 1))[
-            0
-        ].transpose(2, 1)
+        x = x.transpose(2, 1)
+        x = self.attention(x, x, x)[0].transpose(2, 1)
         x = self.res_block_2(x)
         return x
