@@ -43,8 +43,8 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._max_length = max_length
         self._sample_rate = sample_rate
         self._transforms = nn.Sequential(
-            transforms.ReverbFromSoundboard(p=0.5, sample_rate=sample_rate),
-            transforms.GaussianNoise(p=0.5),
+            transforms.ReverbFromSoundboard(p=0.8, sample_rate=sample_rate),
+            transforms.GaussianNoise(p=0.9),
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:
