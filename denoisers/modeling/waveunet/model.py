@@ -13,7 +13,7 @@ from torchmetrics.audio import (
 from transformers import PreTrainedModel
 
 from denoisers.datamodules.waveunet import Batch
-from denoisers.metrics import calculate_pesq
+from denoisers.metrics import PESQ
 from denoisers.modeling.modules import Activation, DownsampleBlock1D, UpsampleBlock1D
 from denoisers.modeling.waveunet.config import WaveUNetConfig
 from denoisers.utils import log_audio_batch, plot_image_from_audio
@@ -30,6 +30,7 @@ class WaveUNetLightningModule(LightningModule):
         self.loss_fn = nn.L1Loss()
         self.snr = ScaleInvariantSignalNoiseRatio()
         self.sdr = ScaleInvariantSignalDistortionRatio()
+        self.pesq = PESQ()
         self.autoencoder = self.config.autoencoder
         self.last_val_batch: Any = {}
 
@@ -74,7 +75,7 @@ class WaveUNetLightningModule(LightningModule):
 
         snr = self.snr(outputs.audio, batch.audio)
         sdr = self.sdr(outputs.audio, batch.audio)
-        pesq = calculate_pesq(outputs.audio, batch.audio, self.config.sample_rate)
+        pesq = self.pesq(outputs.audio, batch.audio, self.config.sample_rate)
 
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_snr", snr)
