@@ -79,7 +79,8 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 pad_length = self._max_length - audio_length
                 audio = nn.functional.pad(audio, (0, pad_length))
             else:
-                audio = audio[:, : self._max_length]
+                start_idx = torch.randint(0, audio.size(-1) - self._max_length, (1,))
+                audio = audio[:, start_idx : start_idx + self._max_length]
 
             noisy = self._transforms(audio.clone())
 
