@@ -26,6 +26,9 @@ class UNet1DLightningModule(LightningModule):
         super().__init__()
         self.config = config
         self.model = UNet1DModel(config)
+        self.ema_model = torch.optim.swa_utils.AveragedModel(
+            self.model, multi_avg_fn=torch.optim.swa_utils.get_ema_multi_avg_fn(0.999)
+        )
         self.loss_fn = nn.L1Loss()
         self.snr = ScaleInvariantSignalNoiseRatio()
         self.sdr = ScaleInvariantSignalDistortionRatio()
@@ -65,7 +68,7 @@ class UNet1DLightningModule(LightningModule):
         batch_idx: Any,
     ) -> Union[Tensor, dict[str, Any]]:
         """Val step."""
-        outputs = self(batch.noisy)
+        outputs = self.ema_model(batch.noisy)
 
         if self.autoencoder:
             loss = self.loss_fn(outputs.audio, batch.audio)
@@ -110,6 +113,7 @@ class UNet1DLightningModule(LightningModule):
         self.sdr.reset()
 
         model_name = self.trainer.default_root_dir.split("/")[-1]
+        self.model.load_state_dict(self.ema_model.module.state_dict())
         self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
         # self.model.push_to_hub(model_name)
 
@@ -118,6 +122,10 @@ class UNet1DLightningModule(LightningModule):
     def on_before_optimizer_step(self, optimizer: Any) -> None:
         """Before optimizer step."""
         self.log_dict(grad_norm(self, norm_type=1))
+
+    def on_before_zero_grad(self, *args, **kwargs):
+        """Update EMA model."""
+        self.ema_model.update_parameters(self.model)
 
     def configure_optimizers(self) -> Any:
         """Set optimizer."""
