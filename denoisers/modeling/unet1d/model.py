@@ -73,7 +73,9 @@ class UNet1DLightningModule(LightningModule):
 
         snr = self.snr(outputs.audio, batch.audio)
         sdr = self.sdr(outputs.audio, batch.audio)
-        pesq = calculate_pesq(outputs.audio, batch.audio, self.config.sample_rate)
+        pesq = calculate_pesq(
+            outputs.audio.float(), batch.audio.float(), self.config.sample_rate
+        )
 
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_snr", snr)
