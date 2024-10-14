@@ -1,7 +1,12 @@
 """Modules for 1D U-Net."""
 from torch import Tensor, nn
 
-from denoisers.modeling.modules import Activation, Downsample1D, Upsample1D
+from denoisers.modeling.modules import (
+    Activation,
+    Downsample1D,
+    Normalization,
+    Upsample1D,
+)
 
 
 class DownBlock1D(nn.Module):
@@ -15,6 +20,7 @@ class DownBlock1D(nn.Module):
         num_groups: int = 32,
         activation: str = "silu",
         dropout: float = 0.0,
+        norm: str = "layer",
     ) -> None:
         super().__init__()
         self.res_block = ResBlock1D(
@@ -24,6 +30,7 @@ class DownBlock1D(nn.Module):
             num_groups=num_groups,
             activation=activation,
             dropout=dropout,
+            norm=norm,
         )
         self.downsample = Downsample1D(
             in_channels=out_channels,
@@ -50,6 +57,7 @@ class UpBlock1D(nn.Module):
         num_groups: int = 32,
         activation: str = "silu",
         dropout: float = 0.0,
+        norm: str = "layer",
     ) -> None:
         super().__init__()
         self.res_block = ResBlock1D(
@@ -59,6 +67,7 @@ class UpBlock1D(nn.Module):
             num_groups=num_groups,
             activation=activation,
             dropout=dropout,
+            norm=norm,
         )
         self.upsample = Upsample1D(
             in_channels=out_channels,
@@ -85,10 +94,9 @@ class ResBlock1D(nn.Module):
         num_groups: int = 32,
         activation: str = "silu",
         dropout: float = 0.0,
+        norm: str = "layer",
     ) -> None:
         super().__init__()
-        self.norm_1 = nn.GroupNorm(num_groups, in_channels)
-        self.activation_1 = Activation(activation)
         self.conv_1 = nn.Conv1d(
             in_channels,
             out_channels,
@@ -96,8 +104,8 @@ class ResBlock1D(nn.Module):
             padding=kernel_size // 2,
             bias=False,
         )
-        self.norm_2 = nn.GroupNorm(num_groups, out_channels)
-        self.activation_2 = Activation(activation)
+        self.norm_1 = Normalization(in_channels, name=norm, num_groups=num_groups)
+        self.activation_1 = Activation(activation)
         self.dropout = nn.Dropout(dropout)
         self.conv_2 = nn.Conv1d(
             out_channels,
@@ -106,18 +114,21 @@ class ResBlock1D(nn.Module):
             padding=kernel_size // 2,
             bias=False,
         )
+        self.norm_2 = Normalization(in_channels, name=norm, num_groups=num_groups)
+        self.activation_2 = Activation(activation)
         self.residual = nn.Conv1d(in_channels, out_channels, 1)
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         residual = self.residual(x)
+        x = self.conv_1(x)
         x = self.norm_1(x)
         x = self.activation_1(x)
-        x = self.conv_1(x)
+        x = self.dropout(x)
+        x = self.conv_2(x)
         x = self.norm_2(x)
         x = self.activation_2(x)
         x = self.dropout(x)
-        x = self.conv_2(x)
         return x + residual
 
 
@@ -133,6 +144,7 @@ class MidBlock1D(nn.Module):
         num_heads: int = 8,
         activation: str = "silu",
         dropout: float = 0.0,
+        norm: str = "layer",
     ) -> None:
         super().__init__()
         self.res_block_1 = ResBlock1D(
@@ -142,6 +154,7 @@ class MidBlock1D(nn.Module):
             num_groups=num_groups,
             activation=activation,
             dropout=dropout,
+            norm=norm,
         )
         self.attention = nn.MultiheadAttention(out_channels, num_heads=num_heads)
         self.res_block_2 = ResBlock1D(
@@ -151,13 +164,16 @@ class MidBlock1D(nn.Module):
             num_groups=num_groups,
             activation=activation,
             dropout=dropout,
+            norm=norm,
         )
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         x = self.res_block_1(x)
-        x = self.attention(x.transpose(2, 1), x.transpose(2, 1), x.transpose(2, 1))[
-            0
-        ].transpose(2, 1)
+        residual = x
+        x = x.transpose(2, 1)
+        x = self.attention(x, x, x)[0]
+        x = x.transpose(2, 1)
+        x = x + residual
         x = self.res_block_2(x)
         return x

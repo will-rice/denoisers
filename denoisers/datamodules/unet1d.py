@@ -1,5 +1,6 @@
 """Unet1D Data modules."""
 import os
+from pathlib import Path
 from typing import NamedTuple, Optional
 
 import numpy as np
@@ -41,8 +42,9 @@ class AudioFromFileDataModule(pl.LightningDataModule):
         self._max_length = max_length
         self._sample_rate = sample_rate
         self._transforms = nn.Sequential(
-            transforms.ReverbFromSoundboard(p=1.0, sample_rate=sample_rate),
-            transforms.GaussianNoise(p=1.0),
+            transforms.ReverbFromSoundboard(p=0.5, sample_rate=sample_rate),
+            transforms.GaussianNoise(p=0.5),
+            transforms.NoiseFromFile(Path("/data-slow/bbc-sounds/"), p=0.5),
         )
 
     def setup(self, stage: Optional[str] = "fit") -> None:

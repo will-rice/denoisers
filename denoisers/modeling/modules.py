@@ -218,3 +218,29 @@ class Activation(nn.Module):
         """Forward Pass."""
         x = self.activation(x)
         return x
+
+
+class Normalization(nn.Module):
+    """Normalization layer."""
+
+    def __init__(self, channels: int, name: str, num_groups: Optional[int] = None):
+        super().__init__()
+        self.name = name
+        if name == "batch":
+            self.norm = nn.BatchNorm1d(channels)
+        elif name == "instance":
+            self.norm = nn.InstanceNorm1d(channels)
+        elif name == "group":
+            if num_groups is None:
+                raise ValueError("Number of groups must be specified for GroupNorm.")
+            self.norm = nn.GroupNorm(num_groups, channels)
+        elif name == "layer":
+            self.norm = nn.LayerNorm(channels)
+        else:
+            raise ValueError(f"{name} normalization is not supported.")
+
+    def forward(self, x: Tensor) -> Tensor:
+        """Forward Pass."""
+        if self.name == "layernorm":
+            return self.norm(x.transpose(2, 1)).transpose(2, 1)
+        return self.norm(x)

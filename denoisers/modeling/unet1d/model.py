@@ -109,7 +109,7 @@ class UNet1DLightningModule(LightningModule):
 
         model_name = self.trainer.default_root_dir.split("/")[-1]
         self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
-        self.model.push_to_hub(model_name)
+        # self.model.push_to_hub(model_name)
 
         garbage_collection_cuda()
 
@@ -150,6 +150,7 @@ class UNet1DModel(PreTrainedModel):
             num_groups=config.num_groups,
             activation=config.activation,
             dropout=config.dropout,
+            norm=config.norm,
         )
 
     def forward(self, inputs: Tensor) -> UNet1DModelOutputs:
@@ -186,6 +187,7 @@ class UNet1D(nn.Module):
         num_groups: int = 32,
         activation: str = "silu",
         dropout: float = 0.1,
+        norm: str = "layer",
     ) -> None:
         super().__init__()
         self.in_conv = nn.Conv1d(
@@ -203,6 +205,7 @@ class UNet1D(nn.Module):
                     num_groups=num_groups,
                     dropout=dropout,
                     activation=activation,
+                    norm=norm,
                 )
                 for i in range(len(channels) - 1)
             ],
@@ -214,6 +217,7 @@ class UNet1D(nn.Module):
             num_groups=num_groups,
             dropout=dropout,
             activation=activation,
+            norm=norm,
         )
         self.decoder_layers = nn.ModuleList(
             [
@@ -224,6 +228,7 @@ class UNet1D(nn.Module):
                     num_groups=num_groups,
                     dropout=dropout,
                     activation=activation,
+                    norm=norm,
                 )
                 for i in reversed(range(len(channels) - 1))
             ],
