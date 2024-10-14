@@ -1,5 +1,6 @@
 """Unet1D Data modules."""
 import os
+import random
 from pathlib import Path
 from typing import NamedTuple, Optional
 
@@ -79,7 +80,7 @@ class AudioFromFileDataModule(pl.LightningDataModule):
                 pad_length = self._max_length - audio_length
                 audio = nn.functional.pad(audio, (0, pad_length))
             else:
-                start_idx = torch.randint(0, audio.size(-1) - self._max_length, (1,))
+                start_idx = random.randint(0, audio.size(-1) - self._max_length)
                 audio = audio[:, start_idx : start_idx + self._max_length]
 
             noisy = self._transforms(audio.clone())
