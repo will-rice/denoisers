@@ -1,10 +1,8 @@
-black
-isort
 pip-tools
 pytest
 pytest-cov
 pydocstyle
-flake8-black
+pre-commit
 mypy
 torch
 torchaudio
@@ -17,3 +15,6 @@ matplotlib
 pedalboard
 transformers
 pesq
+audiomentations
+pydub
+pyroomacoustics
