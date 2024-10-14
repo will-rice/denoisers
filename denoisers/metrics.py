@@ -24,7 +24,7 @@ class PESQ(nn.Module):
 
         try:
             pesq = perceptual_evaluation_speech_quality(
-                pred_resample, true_resample, 16000, "nb"
+                pred_resample, true_resample, fs=16000, mode="nb"
             )
         except cypesq.NoUtterancesError:
             pesq = torch.tensor(0.0)
