@@ -30,7 +30,7 @@ class UNet1DConfig(PretrainedConfig):
         dropout: float = 0.1,
         activation: str = "silu",
         autoencoder: bool = False,
-        max_length: int = 48000 * 5,
+        max_length: int = 48000 * 4,
         sample_rate: int = 48000,
         norm: str = "layer",
         **kwargs: Any,
