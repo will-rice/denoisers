@@ -223,19 +223,19 @@ class Activation(nn.Module):
 class Normalization(nn.Module):
     """Normalization layer."""
 
-    def __init__(self, channels: int, name: str, num_groups: Optional[int] = None):
+    def __init__(self, in_channels: int, name: str, num_groups: Optional[int] = None):
         super().__init__()
         self.name = name
         if name == "batch":
-            self.norm = nn.BatchNorm1d(channels)
+            self.norm = nn.BatchNorm1d(in_channels)
         elif name == "instance":
-            self.norm = nn.InstanceNorm1d(channels)
+            self.norm = nn.InstanceNorm1d(in_channels)
         elif name == "group":
             if num_groups is None:
                 raise ValueError("Number of groups must be specified for GroupNorm.")
-            self.norm = nn.GroupNorm(num_groups, channels)
+            self.norm = nn.GroupNorm(num_groups, in_channels)
         elif name == "layer":
-            self.norm = nn.LayerNorm(channels)
+            self.norm = nn.LayerNorm(in_channels)
         else:
             raise ValueError(f"{name} normalization is not supported.")
 

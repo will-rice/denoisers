@@ -104,7 +104,7 @@ class ResBlock1D(nn.Module):
             padding=kernel_size // 2,
             bias=False,
         )
-        self.norm_1 = Normalization(in_channels, name=norm, num_groups=num_groups)
+        self.norm_1 = Normalization(out_channels, name=norm, num_groups=num_groups)
         self.activation_1 = Activation(activation)
         self.dropout = nn.Dropout(dropout)
         self.conv_2 = nn.Conv1d(
@@ -114,7 +114,7 @@ class ResBlock1D(nn.Module):
             padding=kernel_size // 2,
             bias=False,
         )
-        self.norm_2 = Normalization(in_channels, name=norm, num_groups=num_groups)
+        self.norm_2 = Normalization(out_channels, name=norm, num_groups=num_groups)
         self.activation_2 = Activation(activation)
         self.residual = nn.Conv1d(in_channels, out_channels, 1)
 
