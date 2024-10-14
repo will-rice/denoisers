@@ -241,6 +241,6 @@ class Normalization(nn.Module):
 
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
-        if self.name == "layernorm":
+        if self.name == "layer":
             return self.norm(x.transpose(2, 1)).transpose(2, 1)
         return self.norm(x)
