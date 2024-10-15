@@ -319,7 +319,7 @@ typing-extensions==4.9.0
     #   mypy
     #   pytorch-lightning
     #   torch
-urllib3==2.2.0
+urllib3==2.2.2
     # via
     #   requests
     #   sentry-sdk
