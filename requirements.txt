@@ -191,7 +191,7 @@ pedalboard==0.8.7
     # via -r requirements.in
 pesq==0.0.4
     # via -r requirements.in
-pillow==10.2.0
+pillow==10.3.0
     # via
     #   matplotlib
     #   torchvision
