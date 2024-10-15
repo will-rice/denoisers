@@ -254,7 +254,7 @@ scipy==1.12.0
     # via
     #   librosa
     #   scikit-learn
-sentry-sdk==1.40.4
+sentry-sdk==2.8.0
     # via wandb
 setproctitle==1.3.3
     # via wandb
