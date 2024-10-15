@@ -248,7 +248,7 @@ requests==2.31.0
     #   wandb
 safetensors==0.4.2
     # via transformers
-scikit-learn==1.4.0
+scikit-learn==1.5.0
     # via librosa
 scipy==1.12.0
     # via
