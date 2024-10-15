@@ -239,7 +239,7 @@ pyyaml==6.0.1
     #   wandb
 regex==2023.12.25
     # via transformers
-requests==2.31.0
+requests==2.32.2
     # via
     #   huggingface-hub
     #   pooch
