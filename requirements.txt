@@ -306,7 +306,7 @@ tqdm==4.66.2
     #   huggingface-hub
     #   pytorch-lightning
     #   transformers
-transformers==4.37.2
+transformers==4.38.0
     # via -r requirements.in
 triton==2.2.0
     # via torch
