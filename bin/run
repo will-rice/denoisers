@@ -2,7 +2,6 @@
 
 set -e
 
-subsys=$1
-command=$2
-shift; shift
-exec python -m "denoisers.scripts.$subsys.$command" "$@"
+command=$1
+shift
+exec python -m "denoisers.scripts.$command" "$@"

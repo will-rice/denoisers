@@ -91,7 +91,8 @@ class DenoisersLightningModule(LightningModule):
         loss = l1_loss + stft_loss
 
         metrics = self.val_metrics(outputs.audio, batch.audio)
-        pesq = self.pesq(outputs.audio, batch.audio)
+        with torch.autocast(enabled=False, device_type=self.device.type):
+            pesq = self.pesq(outputs.audio, batch.audio)
 
         self.log("val_loss", loss, prog_bar=True)
         self.log_dict(
@@ -124,7 +125,7 @@ class DenoisersLightningModule(LightningModule):
             preds,
             lengths,
             name="val",
-            sample_rate=self.config.sample_rate,
+            sample_rate=self.model.config.sample_rate,
         )
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
         self.snr.reset()
