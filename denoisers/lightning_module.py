@@ -128,8 +128,6 @@ class DenoisersLightningModule(LightningModule):
             sample_rate=self.model.config.sample_rate,
         )
         plot_image_from_audio(audio, noisy, preds, lengths, "val")
-        self.snr.reset()
-        self.sdr.reset()
 
         model_name = self.trainer.default_root_dir.split("/")[-1]
         self.model.load_state_dict(self.ema_model.module.state_dict())
