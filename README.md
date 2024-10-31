@@ -6,7 +6,6 @@ Denoisers is a denoising library for audio with a focus on simplicity and ease o
 
 [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/wrice/denoisers)
 
-
 ## Usage/Examples
 
 ```sh

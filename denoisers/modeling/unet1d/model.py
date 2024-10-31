@@ -1,141 +1,12 @@
 """UNet1D model."""
-from typing import Any, Optional, Union
+from typing import Optional
 
 import torch
-from pytorch_lightning import LightningModule
-from pytorch_lightning.utilities import grad_norm
-from pytorch_lightning.utilities.memory import garbage_collection_cuda
 from torch import Tensor, nn
-from torchmetrics.audio import (
-    ScaleInvariantSignalDistortionRatio,
-    ScaleInvariantSignalNoiseRatio,
-)
 from transformers import PreTrainedModel
 
-from denoisers.datamodules.unet1d import Batch
-from denoisers.metrics import PESQ
 from denoisers.modeling.unet1d.config import UNet1DConfig
 from denoisers.modeling.unet1d.modules import DownBlock1D, MidBlock1D, UpBlock1D
-from denoisers.utils import log_audio_batch, plot_image_from_audio
-
-
-class UNet1DLightningModule(LightningModule):
-    """UNet1D Lightning Module."""
-
-    def __init__(self, config: UNet1DConfig) -> None:
-        super().__init__()
-        self.config = config
-        self.model = UNet1DModel(config)
-        self.ema_model = torch.optim.swa_utils.AveragedModel(
-            self.model, multi_avg_fn=torch.optim.swa_utils.get_ema_multi_avg_fn(0.999)
-        )
-        self.loss_fn = nn.L1Loss()
-        self.snr = ScaleInvariantSignalNoiseRatio()
-        self.sdr = ScaleInvariantSignalDistortionRatio()
-        self.pesq = PESQ(sample_rate=config.sample_rate)
-        self.autoencoder = self.config.autoencoder
-        self.last_val_batch: Any = {}
-
-    def forward(self, inputs: Tensor) -> Tensor:
-        """Forward Pass."""
-        return self.model(inputs)
-
-    def training_step(
-        self,
-        batch: Batch,
-        batch_idx: Any,
-    ) -> Union[Tensor, dict[str, Any]]:
-        """Train step."""
-        outputs = self(batch.noisy)
-
-        if self.autoencoder:
-            loss = self.loss_fn(outputs.audio, batch.audio)
-        else:
-            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-
-        snr = self.snr(outputs.audio, batch.audio)
-        sdr = self.sdr(outputs.audio, batch.audio)
-
-        self.log("train_loss", loss, prog_bar=True)
-        self.log("train_snr", snr)
-        self.log("train_sdr", sdr)
-
-        return loss
-
-    def validation_step(
-        self,
-        batch: Any,
-        batch_idx: Any,
-    ) -> Union[Tensor, dict[str, Any]]:
-        """Val step."""
-        outputs = self.ema_model(batch.noisy)
-
-        if self.autoencoder:
-            loss = self.loss_fn(outputs.audio, batch.audio)
-        else:
-            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-
-        snr = self.snr(outputs.audio, batch.audio)
-        sdr = self.sdr(outputs.audio, batch.audio)
-        with torch.autocast(enabled=False, device_type=self.device.type):
-            pesq = self.pesq(outputs.audio, batch.audio)
-
-        self.log("val_loss", loss, prog_bar=True)
-        self.log("val_snr", snr)
-        self.log("val_sdr", sdr)
-        self.log("pesq", pesq)
-
-        self.last_val_batch = {
-            "outputs": (
-                batch.audio.detach(),
-                batch.noisy.detach(),
-                outputs.audio.detach(),
-                batch.lengths.detach(),
-            ),
-        }
-
-        return loss
-
-    def on_validation_epoch_end(self) -> None:
-        """Val epoch end."""
-        outputs = self.last_val_batch["outputs"]
-        audio, noisy, preds, lengths = outputs
-        log_audio_batch(
-            audio,
-            noisy,
-            preds,
-            lengths,
-            name="val",
-            sample_rate=self.config.sample_rate,
-        )
-        plot_image_from_audio(audio, noisy, preds, lengths, "val")
-        self.snr.reset()
-        self.sdr.reset()
-
-        model_name = self.trainer.default_root_dir.split("/")[-1]
-        self.model.load_state_dict(self.ema_model.module.state_dict())
-        self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
-        # self.model.push_to_hub(model_name)
-
-        garbage_collection_cuda()
-
-    def on_before_optimizer_step(self, optimizer: Any) -> None:
-        """Before optimizer step."""
-        self.log_dict(grad_norm(self, norm_type=1))
-
-    def on_before_zero_grad(self, *args, **kwargs):
-        """Update EMA model."""
-        self.ema_model.update_parameters(self.model)
-
-    def configure_optimizers(self) -> Any:
-        """Set optimizer."""
-        optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=1e-4,
-            weight_decay=1e-2,
-        )
-
-        return optimizer
 
 
 class UNet1DModelOutputs:
@@ -160,7 +31,7 @@ class UNet1DModel(PreTrainedModel):
             num_groups=config.num_groups,
             activation=config.activation,
             dropout=config.dropout,
-            norm=config.norm,
+            norm_type=config.norm_type,
         )
 
     def forward(self, inputs: Tensor) -> UNet1DModelOutputs:
@@ -194,10 +65,10 @@ class UNet1D(nn.Module):
             384,
         ),
         kernel_size: int = 3,
-        num_groups: int = 32,
+        num_groups: Optional[int] = None,
         activation: str = "silu",
         dropout: float = 0.1,
-        norm: str = "layer",
+        norm_type: str = "layer",
     ) -> None:
         super().__init__()
         self.in_conv = nn.Conv1d(
@@ -215,7 +86,7 @@ class UNet1D(nn.Module):
                     num_groups=num_groups,
                     dropout=dropout,
                     activation=activation,
-                    norm=norm,
+                    norm_type=norm_type,
                 )
                 for i in range(len(channels) - 1)
             ],
@@ -227,7 +98,7 @@ class UNet1D(nn.Module):
             num_groups=num_groups,
             dropout=dropout,
             activation=activation,
-            norm=norm,
+            norm_type=norm_type,
         )
         self.decoder_layers = nn.ModuleList(
             [
@@ -238,7 +109,7 @@ class UNet1D(nn.Module):
                     num_groups=num_groups,
                     dropout=dropout,
                     activation=activation,
-                    norm=norm,
+                    norm_type=norm_type,
                 )
                 for i in reversed(range(len(channels) - 1))
             ],

@@ -29,13 +29,12 @@ known_first_party = ["denoisers"]
 [tool.ruff]
 ignore-init-module-imports = true
 
-ignore = ["S101"]
-
 [tool.ruff.lint]
 select = ["C", "E", "F", "I", "W", "D", "N", "B"]
+ignore = ["D107"]
 
 [tool.ruff.pydocstyle]
-convention = "numpy"
+convention = "google"
 
 [tool.pytest.ini_options]
 filterwarnings = [

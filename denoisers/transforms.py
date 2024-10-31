@@ -283,7 +283,7 @@ class NoiseFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         noise_paths = random.choices(list(root.glob("**/*.flac")), k=num_samples)
-        self.noises = [torchaudio.load(noise)[0] for noise in noise_paths]
+        self.noises = [torchaudio.load(str(noise))[0] for noise in noise_paths]
         print(f"Loaded {len(self.noises)} noises")
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
@@ -313,7 +313,7 @@ class ReverbFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         response_paths = random.choices(list(root.glob("**/*.wav")), k=num_samples)
-        self.responses = [torchaudio.load(r)[0] for r in response_paths]
+        self.responses = [torchaudio.load(str(r))[0] for r in response_paths]
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
         """Forward Pass."""

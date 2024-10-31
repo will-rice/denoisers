@@ -1,5 +1,5 @@
-"""WaveUNet configuration file."""
-from typing import Any
+"""Unet1D configuration file."""
+from typing import Any, Optional
 
 from transformers import PretrainedConfig
 
@@ -26,13 +26,13 @@ class UNet1DConfig(PretrainedConfig):
             384,
         ),
         kernel_size: int = 3,
-        num_groups: int = 32,
+        num_groups: Optional[int] = None,
         dropout: float = 0.1,
         activation: str = "silu",
         autoencoder: bool = False,
-        max_length: int = 48000 * 1,
-        sample_rate: int = 48000,
-        norm: str = "layer",
+        max_length: int = 24000 * 1,
+        sample_rate: int = 24000,
+        norm_type: str = "layer",
         **kwargs: Any,
     ) -> None:
         self.channels = channels
@@ -41,5 +41,5 @@ class UNet1DConfig(PretrainedConfig):
         self.dropout = dropout
         self.activation = activation
         self.autoencoder = autoencoder
-        self.norm = norm
+        self.norm_type = norm_type
         super().__init__(**kwargs, max_length=max_length, sample_rate=sample_rate)

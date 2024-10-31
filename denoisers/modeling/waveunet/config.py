@@ -1,5 +1,5 @@
 """WaveUNet configuration file."""
-from typing import Any
+from typing import Any, Optional
 
 from transformers import PretrainedConfig
 
@@ -32,6 +32,8 @@ class WaveUNetConfig(PretrainedConfig):
         autoencoder: bool = False,
         max_length: int = 16384 * 10,
         sample_rate: int = 48000,
+        norm_type: str = "batch",
+        num_groups: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
         self.in_channels = in_channels
@@ -40,4 +42,6 @@ class WaveUNetConfig(PretrainedConfig):
         self.dropout = dropout
         self.activation = activation
         self.autoencoder = autoencoder
+        self.norm_type = norm_type
+        self.num_groups = num_groups
         super().__init__(**kwargs, max_length=max_length, sample_rate=sample_rate)

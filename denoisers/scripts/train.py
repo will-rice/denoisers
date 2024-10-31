@@ -1,15 +1,17 @@
 """Train script."""
 import argparse
 from pathlib import Path
+from typing import Any
 
-import pytorch_lightning as pl
 import torch
-from pytorch_lightning import loggers
+from pytorch_lightning import Trainer, callbacks, loggers, seed_everything
 
-from denoisers.datamodules.unet1d import AudioFromFileDataModule
+from denoisers import WaveUNetConfig, WaveUNetModel
+from denoisers.datamodule import DenoisersDataModule
 from denoisers.datasets.audio import AudioDataset
+from denoisers.lightning_module import DenoisersLightningModule
 from denoisers.modeling.unet1d.config import UNet1DConfig
-from denoisers.modeling.unet1d.model import UNet1DLightningModule
+from denoisers.modeling.unet1d.model import UNet1DModel
 
 if torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
@@ -17,11 +19,22 @@ if torch.cuda.is_available():
     torch.backends.cuda.matmul.allow_tf32 = True
 
 
+MODELS: dict[str, Any] = {
+    "unet1d": UNet1DModel,
+    "waveunet": WaveUNetModel,
+}  # Add your models here
+CONFIGS: dict[str, Any] = {
+    "unet1d": UNet1DConfig,
+    "waveunet": WaveUNetConfig,
+}  # Add your configs here
+
+
 def main() -> None:
     """Run training."""
     parser = argparse.ArgumentParser("train parser")
+    parser.add_argument("model", type=str, choices=MODELS.keys())
     parser.add_argument("name", type=str)
-    parser.add_argument("data_path", type=Path)
+    parser.add_argument("data_root", type=Path)
     parser.add_argument("--project", default="denoisers", type=str)
     parser.add_argument(
         "--num_devices",
@@ -35,40 +48,36 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    pl.seed_everything(args.seed)
+    seed_everything(args.seed)
 
     log_path = args.log_path / args.name
     log_path.mkdir(exist_ok=True, parents=True)
 
-    config = UNet1DConfig()
-    model = UNet1DLightningModule(config)
+    config = CONFIGS[args.model]()
+    model = MODELS[args.model](config)
+    lightning_module = DenoisersLightningModule(model)
 
-    dataset = AudioDataset(args.data_path)
-    datamodule = AudioFromFileDataModule(
-        dataset,
-        batch_size=args.batch_size,
-        max_length=config.max_length,
-        sample_rate=config.sample_rate,
+    dataset = AudioDataset(
+        args.data_root, max_length=config.max_length, sample_rate=config.sample_rate
     )
-
+    datamodule = DenoisersDataModule(dataset, batch_size=args.batch_size)
     logger = loggers.WandbLogger(
         project=args.project,
         save_dir=log_path,
         name=args.name,
         offline=args.debug,
     )
-
-    checkpoint_callback = pl.callbacks.ModelCheckpoint(
+    checkpoint_callback = callbacks.ModelCheckpoint(
         dirpath=log_path,
         filename="{step}",
         save_last=True,
     )
-    lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
+    lr_monitor = callbacks.LearningRateMonitor(logging_interval="step")
 
     pretrained = args.checkpoint_path
     last_checkpoint = pretrained if pretrained else log_path / "last.ckpt"
 
-    trainer = pl.Trainer(
+    trainer = Trainer(
         default_root_dir=log_path,
         max_epochs=1000,
         accelerator="auto",
@@ -82,7 +91,7 @@ def main() -> None:
     )
 
     trainer.fit(
-        model,
+        lightning_module,
         datamodule=datamodule,
         ckpt_path=last_checkpoint if last_checkpoint.exists() else None,
     )

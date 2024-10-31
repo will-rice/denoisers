@@ -1,4 +1,6 @@
 """Modules for 1D U-Net."""
+from typing import Optional
+
 from torch import Tensor, nn
 
 from denoisers.modeling.modules import (
@@ -17,10 +19,10 @@ class DownBlock1D(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        num_groups: int = 32,
+        num_groups: Optional[int] = None,
         activation: str = "silu",
         dropout: float = 0.0,
-        norm: str = "layer",
+        norm_type: str = "layer",
     ) -> None:
         super().__init__()
         self.res_block = ResBlock1D(
@@ -30,7 +32,7 @@ class DownBlock1D(nn.Module):
             num_groups=num_groups,
             activation=activation,
             dropout=dropout,
-            norm=norm,
+            norm_type=norm_type,
         )
         self.downsample = Downsample1D(
             in_channels=out_channels,
@@ -54,10 +56,10 @@ class UpBlock1D(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        num_groups: int = 32,
+        num_groups: Optional[int] = None,
         activation: str = "silu",
         dropout: float = 0.0,
-        norm: str = "layer",
+        norm_type: str = "layer",
     ) -> None:
         super().__init__()
         self.res_block = ResBlock1D(
@@ -67,7 +69,7 @@ class UpBlock1D(nn.Module):
             num_groups=num_groups,
             activation=activation,
             dropout=dropout,
-            norm=norm,
+            norm_type=norm_type,
         )
         self.upsample = Upsample1D(
             in_channels=out_channels,
@@ -91,10 +93,10 @@ class ResBlock1D(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        num_groups: int = 32,
+        num_groups: Optional[int] = None,
         activation: str = "silu",
         dropout: float = 0.0,
-        norm: str = "layer",
+        norm_type: str = "layer",
     ) -> None:
         super().__init__()
         self.conv_1 = nn.Conv1d(
@@ -104,7 +106,7 @@ class ResBlock1D(nn.Module):
             padding=kernel_size // 2,
             bias=False,
         )
-        self.norm_1 = Normalization(out_channels, name=norm, num_groups=num_groups)
+        self.norm_1 = Normalization(out_channels, name=norm_type, num_groups=num_groups)
         self.activation_1 = Activation(activation)
         self.dropout = nn.Dropout(dropout)
         self.conv_2 = nn.Conv1d(
@@ -114,7 +116,7 @@ class ResBlock1D(nn.Module):
             padding=kernel_size // 2,
             bias=False,
         )
-        self.norm_2 = Normalization(out_channels, name=norm, num_groups=num_groups)
+        self.norm_2 = Normalization(out_channels, name=norm_type, num_groups=num_groups)
         self.activation_2 = Activation(activation)
         self.residual = nn.Conv1d(in_channels, out_channels, 1)
 
@@ -140,11 +142,11 @@ class MidBlock1D(nn.Module):
         in_channels: int,
         out_channels: int,
         kernel_size: int = 3,
-        num_groups: int = 32,
+        num_groups: Optional[int] = None,
         num_heads: int = 8,
         activation: str = "silu",
         dropout: float = 0.0,
-        norm: str = "layer",
+        norm_type: str = "layer",
     ) -> None:
         super().__init__()
         self.res_block_1 = ResBlock1D(
@@ -154,7 +156,7 @@ class MidBlock1D(nn.Module):
             num_groups=num_groups,
             activation=activation,
             dropout=dropout,
-            norm=norm,
+            norm_type=norm_type,
         )
         self.attention = nn.MultiheadAttention(out_channels, num_heads=num_heads)
         self.res_block_2 = ResBlock1D(
@@ -164,7 +166,7 @@ class MidBlock1D(nn.Module):
             num_groups=num_groups,
             activation=activation,
             dropout=dropout,
-            norm=norm,
+            norm_type=norm_type,
         )
 
     def forward(self, x: Tensor) -> Tensor:

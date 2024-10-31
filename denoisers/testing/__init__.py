@@ -12,7 +12,7 @@ def sine_wave(frequency: float, duration: float, sample_rate: int) -> Tensor:
         duration: Duration of the sine wave in seconds.
         sample_rate: Sample rate of the sine wave.
 
-    Returns
+    Returns:
     -------
         A torch tensor containing the sine wave.
     """

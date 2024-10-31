@@ -1,139 +1,21 @@
-"""Wave UNet Model."""
-from typing import Any, Optional, Union
+"""WaveUNet Model."""
+from typing import Optional
 
 import torch
-from pytorch_lightning import LightningModule
-from pytorch_lightning.utilities import grad_norm
-from pytorch_lightning.utilities.memory import garbage_collection_cuda
-from torch import Tensor, nn
-from torchmetrics.audio import (
-    ScaleInvariantSignalDistortionRatio,
-    ScaleInvariantSignalNoiseRatio,
-)
+from torch import nn
 from transformers import PreTrainedModel
 
-from denoisers.datamodules.waveunet import Batch
-from denoisers.metrics import PESQ
-from denoisers.modeling.modules import Activation, DownsampleBlock1D, UpsampleBlock1D
+from denoisers.modeling.modules import Activation, Normalization
 from denoisers.modeling.waveunet.config import WaveUNetConfig
-from denoisers.utils import log_audio_batch, plot_image_from_audio
-
-
-class WaveUNetLightningModule(LightningModule):
-    """WaveUNet Model."""
-
-    def __init__(self, config: WaveUNetConfig) -> None:
-        super().__init__()
-        self.save_hyperparameters()
-        self.config = config
-        self.model = WaveUNetModel(self.config)
-        self.loss_fn = nn.L1Loss()
-        self.snr = ScaleInvariantSignalNoiseRatio()
-        self.sdr = ScaleInvariantSignalDistortionRatio()
-        self.pesq = PESQ()
-        self.autoencoder = self.config.autoencoder
-        self.last_val_batch: Any = {}
-
-    def forward(self, inputs: Tensor) -> Tensor:
-        """Forward Pass."""
-        return self.model(inputs)
-
-    def training_step(
-        self,
-        batch: Batch,
-        batch_idx: Any,
-    ) -> Union[Tensor, dict[str, Any]]:
-        """Train step."""
-        outputs = self(batch.noisy)
-
-        if self.autoencoder:
-            loss = self.loss_fn(outputs.audio, batch.audio)
-        else:
-            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-
-        snr = self.snr(outputs.audio, batch.audio)
-        sdr = self.sdr(outputs.audio, batch.audio)
-
-        self.log("train_loss", loss, prog_bar=True)
-        self.log("train_snr", snr)
-        self.log("train_sdr", sdr)
-
-        return loss
-
-    def validation_step(
-        self,
-        batch: Any,
-        batch_idx: Any,
-    ) -> Union[Tensor, dict[str, Any]]:
-        """Val step."""
-        outputs = self(batch.noisy)
-
-        if self.autoencoder:
-            loss = self.loss_fn(outputs.audio, batch.audio)
-        else:
-            loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
-
-        snr = self.snr(outputs.audio, batch.audio)
-        sdr = self.sdr(outputs.audio, batch.audio)
-        pesq = self.pesq(outputs.audio, batch.audio)
-
-        self.log("val_loss", loss, prog_bar=True)
-        self.log("val_snr", snr)
-        self.log("val_sdr", sdr)
-        self.log("pesq", pesq)
-
-        self.last_val_batch = {
-            "outputs": (
-                batch.audio.detach(),
-                batch.noisy.detach(),
-                outputs.audio.detach(),
-                batch.lengths.detach(),
-            ),
-        }
-
-        return loss
-
-    def on_validation_epoch_end(self) -> None:
-        """Val epoch end."""
-        outputs = self.last_val_batch["outputs"]
-        audio, noisy, preds, lengths = outputs
-        log_audio_batch(
-            audio,
-            noisy,
-            preds,
-            lengths,
-            name="val",
-            sample_rate=self.config.sample_rate,
-        )
-        plot_image_from_audio(audio, noisy, preds, lengths, "val")
-        self.snr.reset()
-        self.sdr.reset()
-
-        model_name = self.trainer.default_root_dir.split("/")[-1]
-        self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
-        self.model.push_to_hub(model_name)
-
-        garbage_collection_cuda()
-
-    def on_before_optimizer_step(self, optimizer: Any) -> None:
-        """Before optimizer step."""
-        self.log_dict(grad_norm(self, norm_type=1))
-
-    def configure_optimizers(self) -> Any:
-        """Set optimizer."""
-        optimizer = torch.optim.AdamW(
-            self.model.parameters(),
-            lr=1e-4,
-            weight_decay=1e-2,
-        )
-
-        return optimizer
+from denoisers.modeling.waveunet.modules import DownsampleBlock1D, UpsampleBlock1D
 
 
 class WaveUNetModelOutputs:
     """Class for holding model outputs."""
 
-    def __init__(self, audio: Tensor, noise: Optional[Tensor] = None) -> None:
+    def __init__(
+        self, audio: torch.Tensor, noise: Optional[torch.Tensor] = None
+    ) -> None:
         self.audio = audio
         self.noise = noise
 
@@ -154,7 +36,7 @@ class WaveUNetModel(PreTrainedModel):
             activation=config.activation,
         )
 
-    def forward(self, inputs: Tensor) -> WaveUNetModelOutputs:
+    def forward(self, inputs: torch.Tensor) -> WaveUNetModelOutputs:
         """Forward Pass."""
         if self.config.autoencoder:
             audio = self.model(inputs)
@@ -188,6 +70,8 @@ class WaveUNet(nn.Module):
         upsample_kernel_size: int = 5,
         dropout: float = 0.0,
         activation: str = "leaky_relu",
+        norm_type: str = "batch",
+        num_groups: Optional[int] = None,
     ) -> None:
         super().__init__()
         self.in_conv = nn.Conv1d(
@@ -204,6 +88,8 @@ class WaveUNet(nn.Module):
                     kernel_size=downsample_kernel_size,
                     dropout=dropout,
                     activation=activation,
+                    norm_type=norm_type,
+                    num_groups=num_groups,
                 )
                 for i in range(len(in_channels) - 1)
             ],
@@ -215,7 +101,7 @@ class WaveUNet(nn.Module):
                 kernel_size=downsample_kernel_size,
                 padding=downsample_kernel_size // 2,
             ),
-            nn.BatchNorm1d(in_channels[-1]),
+            Normalization(in_channels[-1], num_groups=num_groups, name=norm_type),
             Activation(activation),
             nn.Dropout(dropout),
         )
@@ -236,7 +122,7 @@ class WaveUNet(nn.Module):
             nn.Tanh(),
         )
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Forward Pass."""
         out = self.in_conv(inputs)
 

@@ -1,7 +1,8 @@
 """Modules for the denoiser models."""
 from typing import Any, Optional
 
-from torch import Tensor, nn
+import torch
+from torch import nn
 
 
 class Upsample1D(nn.Module):
@@ -57,7 +58,7 @@ class Upsample1D(nn.Module):
                 bias=bias,
             )
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
         if self.use_conv_transpose:
             return self.conv(inputs)
@@ -124,80 +125,9 @@ class Downsample1D(nn.Module):
         else:
             self.conv = nn.AvgPool1d(kernel_size=stride, stride=stride)
 
-    def forward(self, inputs: Tensor) -> Tensor:
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         """Forward pass."""
         return self.conv(inputs)
-
-
-class DownsampleBlock1D(nn.Module):
-    """1d downsample block."""
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        stride: int = 2,
-        dropout: float = 0.0,
-        activation: str = "leaky_relu",
-        bias: bool = True,
-    ) -> None:
-        super().__init__()
-
-        self.downsample = Downsample1D(
-            in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            use_conv=True,
-            padding=kernel_size // 2,
-            bias=bias,
-        )
-        self.batch_norm = nn.BatchNorm1d(out_channels)
-        self.activation = Activation(activation)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass."""
-        x = self.downsample(x)
-        x = self.batch_norm(x)
-        x = self.activation(x)
-        x = self.dropout(x)
-        return x
-
-
-class UpsampleBlock1D(nn.Module):
-    """1d upsample block."""
-
-    def __init__(
-        self,
-        in_channels: int,
-        out_channels: int,
-        kernel_size: int = 3,
-        dropout: float = 0.0,
-        activation: str = "leaky_relu",
-        bias: bool = True,
-    ) -> None:
-        super().__init__()
-        self.upsample = Upsample1D(
-            in_channels,
-            out_channels=out_channels,
-            kernel_size=kernel_size,
-            use_conv=True,
-            padding=kernel_size // 2,
-            bias=bias,
-        )
-        self.batch_norm = nn.BatchNorm1d(out_channels)
-        self.activation = Activation(activation)
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x: Tensor) -> Tensor:
-        """Forward pass."""
-        x = self.upsample(x)
-        x = self.batch_norm(x)
-        x = self.activation(x)
-        x = self.dropout(x)
-        return x
 
 
 class Activation(nn.Module):
@@ -214,7 +144,7 @@ class Activation(nn.Module):
         else:
             raise ValueError(f"{name} activation is not supported.")
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward Pass."""
         x = self.activation(x)
         return x
@@ -227,7 +157,7 @@ class Normalization(nn.Module):
         super().__init__()
         self.name = name
         if name == "batch":
-            self.norm = nn.BatchNorm1d(in_channels)
+            self.norm: nn.Module = nn.BatchNorm1d(in_channels)
         elif name == "instance":
             self.norm = nn.InstanceNorm1d(in_channels)
         elif name == "group":
@@ -239,7 +169,7 @@ class Normalization(nn.Module):
         else:
             raise ValueError(f"{name} normalization is not supported.")
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Forward Pass."""
         if self.name == "layer":
             return self.norm(x.transpose(2, 1)).transpose(2, 1)
