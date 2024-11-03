@@ -1,5 +1,6 @@
 """Train script."""
 import argparse
+import warnings
 from pathlib import Path
 
 import torch
@@ -14,6 +15,9 @@ if torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.allow_tf32 = True
     torch.backends.cuda.matmul.allow_tf32 = True
+
+
+warnings.filterwarnings("ignore")
 
 
 def main() -> None:
