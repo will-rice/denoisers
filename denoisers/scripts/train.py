@@ -84,7 +84,7 @@ def main() -> None:
         logger=logger,
         precision="bf16-mixed",
         accumulate_grad_batches=2,
-        limit_val_batches=10,
+        # limit_val_batches=10,
         callbacks=[checkpoint_callback, lr_monitor],
     )
 
