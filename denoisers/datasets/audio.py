@@ -1,16 +1,11 @@
 """Audio dataset."""
 import random
 from pathlib import Path
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 
 import torch
 import torchaudio
-from audiomentations import (
-    AddColorNoise,
-    AddGaussianNoise,
-    ApplyImpulseResponse,
-    Compose,
-)
+from audiomentations import AddColorNoise, AddGaussianNoise, Compose, RoomSimulator
 from torch.utils.data import Dataset
 
 SUPPORTED_EXTENSIONS = {".wav", ".flac", ".mp3"}
@@ -27,13 +22,7 @@ class Batch(NamedTuple):
 class AudioDataset(Dataset):
     """Simple audio dataset."""
 
-    def __init__(
-        self,
-        root: Path,
-        max_length: int,
-        sample_rate: int,
-        rir_root: Optional[Path] = None,
-    ) -> None:
+    def __init__(self, root: Path, max_length: int, sample_rate: int) -> None:
         super().__init__()
         self._root = root
         self._samples = []
@@ -42,11 +31,13 @@ class AudioDataset(Dataset):
         self._max_length = max_length
         self._sample_rate = sample_rate
 
-        transforms = [AddColorNoise(p=0.97), AddGaussianNoise(p=0.97)]
-        if rir_root:
-            transforms.append(ApplyImpulseResponse(rir_root, p=0.8))
-
-        self._transforms = Compose(transforms)
+        self._transforms = Compose(
+            [
+                RoomSimulator(p=0.8, leave_length_unchanged=True),
+                AddColorNoise(p=0.97),
+                AddGaussianNoise(p=0.97),
+            ]
+        )
 
     def __len__(self) -> int:
         """Return length of dataset."""

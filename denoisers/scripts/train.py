@@ -26,7 +26,6 @@ def main() -> None:
     parser.add_argument("model", type=str, choices=MODELS.keys())
     parser.add_argument("name", type=str)
     parser.add_argument("data_root", type=Path)
-    parser.add_argument("--rir_root", default=None, type=Path)
     parser.add_argument("--project", default="denoisers", type=str)
     parser.add_argument(
         "--num_devices",
@@ -51,10 +50,7 @@ def main() -> None:
     lightning_module = DenoisersLightningModule(model)
 
     dataset = AudioDataset(
-        args.data_root,
-        max_length=config.max_length,
-        sample_rate=config.sample_rate,
-        rir_root=args.rir_root,
+        args.data_root, max_length=config.max_length, sample_rate=config.sample_rate
     )
     datamodule = DenoisersDataModule(
         dataset, batch_size=args.batch_size, num_workers=args.num_workers
