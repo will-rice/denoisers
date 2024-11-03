@@ -40,3 +40,7 @@ convention = "google"
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[project.scripts]
+train = "denoisers.scripts.train:main"
+publish = "denoisers.scripts.publish:main"

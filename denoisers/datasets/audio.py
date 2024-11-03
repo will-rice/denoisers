@@ -1,14 +1,17 @@
 """Audio dataset."""
 import random
 from pathlib import Path
-from typing import NamedTuple
+from typing import NamedTuple, Optional
 
 import torch
 import torchaudio
-from torch import nn
 from torch.utils.data import Dataset
-
-from denoisers import transforms
+from torch_audiomentations import (
+    AddColoredNoise,
+    ApplyImpulseResponse,
+    Compose,
+    Identity,
+)
 
 SUPPORTED_EXTENSIONS = {".wav", ".flac", ".mp3"}
 
@@ -24,7 +27,13 @@ class Batch(NamedTuple):
 class AudioDataset(Dataset):
     """Simple audio dataset."""
 
-    def __init__(self, root: Path, max_length: int, sample_rate: int) -> None:
+    def __init__(
+        self,
+        root: Path,
+        max_length: int,
+        sample_rate: int,
+        rir_root: Optional[Path] = None,
+    ) -> None:
         super().__init__()
         self._root = root
         self._samples = []
@@ -32,9 +41,11 @@ class AudioDataset(Dataset):
             self._samples.extend(list(self._root.glob(f"**/*{ext}")))
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._transforms = nn.Sequential(
-            # transforms.ReverbFromSoundboard(p=0.8, sample_rate=sample_rate),
-            transforms.GaussianNoise(p=1.0),
+        self._transforms = Compose(
+            [
+                ApplyImpulseResponse(rir_root, p=0.8) if rir_root else Identity(),
+                AddColoredNoise(p=0.97),
+            ]
         )
 
     def __len__(self) -> int:
@@ -56,11 +67,11 @@ class AudioDataset(Dataset):
 
         if audio_length < self._max_length:
             pad_length = self._max_length - audio_length
-            audio = nn.functional.pad(audio, (0, pad_length))
+            audio = torch.nn.functional.pad(audio, (0, pad_length))
         else:
             start_idx = random.randint(0, audio.size(-1) - self._max_length)
             audio = audio[:, start_idx : start_idx + self._max_length]
 
-        noisy = self._transforms(audio.clone())
+        noisy = self._transforms(audio[None].clone(), sample_rate=self._sample_rate)[0]
 
         return Batch(audio=audio, noisy=noisy, lengths=torch.tensor(audio_length))

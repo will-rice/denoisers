@@ -1,32 +1,19 @@
 """Train script."""
 import argparse
 from pathlib import Path
-from typing import Any
 
 import torch
 from pytorch_lightning import Trainer, callbacks, loggers, seed_everything
 
-from denoisers import WaveUNetConfig, WaveUNetModel
 from denoisers.datamodule import DenoisersDataModule
 from denoisers.datasets.audio import AudioDataset
 from denoisers.lightning_module import DenoisersLightningModule
-from denoisers.modeling.unet1d.config import UNet1DConfig
-from denoisers.modeling.unet1d.model import UNet1DModel
+from denoisers.modeling import CONFIGS, MODELS
 
 if torch.cuda.is_available():
     torch.backends.cudnn.benchmark = True
     torch.backends.cudnn.allow_tf32 = True
     torch.backends.cuda.matmul.allow_tf32 = True
-
-
-MODELS: dict[str, Any] = {
-    "unet1d": UNet1DModel,
-    "waveunet": WaveUNetModel,
-}  # Add your models here
-CONFIGS: dict[str, Any] = {
-    "unet1d": UNet1DConfig,
-    "waveunet": WaveUNetConfig,
-}  # Add your configs here
 
 
 def main() -> None:
@@ -35,12 +22,14 @@ def main() -> None:
     parser.add_argument("model", type=str, choices=MODELS.keys())
     parser.add_argument("name", type=str)
     parser.add_argument("data_root", type=Path)
+    parser.add_argument("--rir_root", default=None, type=Path)
     parser.add_argument("--project", default="denoisers", type=str)
     parser.add_argument(
         "--num_devices",
         default=1 if torch.cuda.is_available() else None,
     )
     parser.add_argument("--batch_size", default=64, type=int)
+    parser.add_argument("--num_workers", default=4, type=int)
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--log_path", default="logs", type=Path)
     parser.add_argument("--checkpoint_path", default=None, type=Path)
@@ -58,9 +47,14 @@ def main() -> None:
     lightning_module = DenoisersLightningModule(model)
 
     dataset = AudioDataset(
-        args.data_root, max_length=config.max_length, sample_rate=config.sample_rate
+        args.data_root,
+        max_length=config.max_length,
+        sample_rate=config.sample_rate,
+        rir_root=args.rir_root,
     )
-    datamodule = DenoisersDataModule(dataset, batch_size=args.batch_size)
+    datamodule = DenoisersDataModule(
+        dataset, batch_size=args.batch_size, num_workers=args.num_workers
+    )
     logger = loggers.WandbLogger(
         project=args.project,
         save_dir=log_path,

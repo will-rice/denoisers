@@ -12,6 +12,8 @@ Denoisers is a denoising library for audio with a focus on simplicity and ease o
 pip install denoisers
 ```
 
+### Inference
+
 ```python
 import torch
 import torchaudio
@@ -41,4 +43,20 @@ for i in tqdm(range(0, padded.shape[-1], chunk_size)):
     clean.append(clean_chunk.squeeze(0))
 
 denoised = torch.concat(clean, 1)[:, :audio.shape[-1]]
+```
+
+### Train
+
+```sh
+
+train unet1d unet1d-24khz /data_root/
+
+```
+
+### Publish
+
+```sh
+
+publish model model_name /path/to/model
+
 ```
