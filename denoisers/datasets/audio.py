@@ -33,7 +33,9 @@ class AudioDataset(Dataset):
 
         self._transforms = Compose(
             [
-                RoomSimulator(p=0.8, leave_length_unchanged=True),
+                RoomSimulator(
+                    p=0.8, leave_length_unchanged=True, use_ray_tracing=False
+                ),
                 AddColorNoise(p=0.97),
                 AddGaussianNoise(p=0.97),
             ]
