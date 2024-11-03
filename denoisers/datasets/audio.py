@@ -5,13 +5,13 @@ from typing import NamedTuple, Optional
 
 import torch
 import torchaudio
-from torch.utils.data import Dataset
-from torch_audiomentations import (
-    AddColoredNoise,
+from audiomentations import (
+    AddColorNoise,
+    AddGaussianNoise,
     ApplyImpulseResponse,
     Compose,
-    Identity,
 )
+from torch.utils.data import Dataset
 
 SUPPORTED_EXTENSIONS = {".wav", ".flac", ".mp3"}
 
@@ -41,12 +41,12 @@ class AudioDataset(Dataset):
             self._samples.extend(list(self._root.glob(f"**/*{ext}")))
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._transforms = Compose(
-            [
-                ApplyImpulseResponse(rir_root, p=0.8) if rir_root else Identity(),
-                AddColoredNoise(p=0.97),
-            ]
-        )
+
+        transforms = [AddColorNoise(p=0.97), AddGaussianNoise(p=0.97)]
+        if rir_root:
+            transforms.append(ApplyImpulseResponse(rir_root, p=0.8))
+
+        self._transforms = Compose(transforms)
 
     def __len__(self) -> int:
         """Return length of dataset."""
@@ -72,6 +72,7 @@ class AudioDataset(Dataset):
             start_idx = random.randint(0, audio.size(-1) - self._max_length)
             audio = audio[:, start_idx : start_idx + self._max_length]
 
-        noisy = self._transforms(audio[None].clone(), sample_rate=self._sample_rate)[0]
+        noisy = self._transforms(audio.clone().numpy(), sample_rate=self._sample_rate)
+        noisy = torch.from_numpy(noisy)
 
         return Batch(audio=audio, noisy=noisy, lengths=torch.tensor(audio_length))

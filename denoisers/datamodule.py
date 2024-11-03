@@ -14,7 +14,6 @@ class DenoisersDataModule(LightningDataModule):
         self, dataset: Dataset, batch_size: int = 24, num_workers: int = 8
     ) -> None:
         super().__init__()
-        self.save_hyperparameters()
 
         self._dataset = dataset
         self._batch_size = batch_size
