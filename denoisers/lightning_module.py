@@ -145,10 +145,10 @@ class DenoisersLightningModule(LightningModule):
 
     def configure_optimizers(
         self,
-    ) -> tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
+    ) -> dict[str, torch.optim.lr_scheduler.LRScheduler | torch.optim.Optimizer]:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(
             self.model.parameters(), lr=1e-4, weight_decay=1e-2
         )
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999875)
-        return optimizer, scheduler
+        return {"optimizer": optimizer, "lr_scheduler": scheduler}
