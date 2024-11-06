@@ -143,9 +143,12 @@ class DenoisersLightningModule(LightningModule):
         """Before optimizer step."""
         self.log_dict(grad_norm(self, norm_type=1))
 
-    def configure_optimizers(self) -> torch.optim.Optimizer:
+    def configure_optimizers(
+        self,
+    ) -> tuple[torch.optim.Optimizer, torch.optim.lr_scheduler.LRScheduler]:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(
             self.model.parameters(), lr=1e-4, weight_decay=1e-2
         )
-        return optimizer
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999875)
+        return optimizer, scheduler
