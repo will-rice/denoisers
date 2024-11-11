@@ -29,7 +29,7 @@ class UNet1DConfig(PretrainedConfig):
         num_groups: Optional[int] = None,
         dropout: float = 0.1,
         activation: str = "silu",
-        autoencoder: bool = False,
+        autoencoder: bool = True,
         max_length: int = 24000,
         sample_rate: int = 24000,
         norm_type: str = "layer",
