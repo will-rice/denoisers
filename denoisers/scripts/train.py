@@ -81,6 +81,7 @@ def main() -> None:
         precision="bf16-mixed",
         accumulate_grad_batches=2,
         callbacks=[checkpoint_callback, lr_monitor],
+        strategy="ddp" if args.num_devices > 1 else "auto",
     )
 
     trainer.fit(
