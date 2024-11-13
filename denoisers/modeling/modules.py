@@ -133,7 +133,7 @@ class Downsample1D(nn.Module):
 class Activation(nn.Module):
     """Activation function."""
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, channels: Optional[int] = None):
         super().__init__()
         if name == "silu":
             self.activation: nn.Module = nn.SiLU(inplace=True)
@@ -141,6 +141,12 @@ class Activation(nn.Module):
             self.activation = nn.ReLU(inplace=True)
         elif name == "leaky_relu":
             self.activation = nn.LeakyReLU(0.2, inplace=True)
+        elif name == "snake":
+            if channels is None:
+                raise ValueError(
+                    "Number of channels must be specified for Snake activation."
+                )
+            self.activation = Snake1d(hidden_dim=channels)
         else:
             raise ValueError(f"{name} activation is not supported.")
 
@@ -174,3 +180,31 @@ class Normalization(nn.Module):
         if self.name == "layer":
             return self.norm(x.transpose(2, 1)).transpose(2, 1)
         return self.norm(x)
+
+
+class Snake1d(nn.Module):
+    """A 1-dimensional Snake activation function module.
+
+    https://github.com/huggingface/diffusers/blob/main/src/diffusers/models/autoencoders/autoencoder_oobleck.py#L30
+
+    """
+
+    def __init__(self, hidden_dim: int, logscale: bool = False):
+        super().__init__()
+        self.alpha = nn.Parameter(torch.zeros(1, hidden_dim, 1), requires_grad=True)
+        self.beta = nn.Parameter(torch.zeros(1, hidden_dim, 1), requires_grad=True)
+        self.logscale = logscale
+
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
+        """Forward pass."""
+        shape = hidden_states.shape
+
+        alpha = self.alpha if not self.logscale else torch.exp(self.alpha)
+        beta = self.beta if not self.logscale else torch.exp(self.beta)
+
+        hidden_states = hidden_states.reshape(shape[0], shape[1], -1)
+        hidden_states = hidden_states + (beta + 1e-9).reciprocal() * torch.sin(
+            alpha * hidden_states
+        ).pow(2)
+        hidden_states = hidden_states.reshape(shape)
+        return hidden_states

@@ -107,7 +107,7 @@ class ResBlock1D(nn.Module):
             bias=False,
         )
         self.norm_1 = Normalization(out_channels, name=norm_type, num_groups=num_groups)
-        self.activation_1 = Activation(activation)
+        self.activation_1 = Activation(activation, channels=out_channels)
         self.dropout = nn.Dropout(dropout)
         self.conv_2 = nn.Conv1d(
             out_channels,
@@ -117,7 +117,7 @@ class ResBlock1D(nn.Module):
             bias=False,
         )
         self.norm_2 = Normalization(out_channels, name=norm_type, num_groups=num_groups)
-        self.activation_2 = Activation(activation)
+        self.activation_2 = Activation(activation, channels=out_channels)
         self.residual = nn.Conv1d(in_channels, out_channels, 1)
 
     def forward(self, x: Tensor) -> Tensor:

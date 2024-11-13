@@ -28,10 +28,10 @@ class UNet1DConfig(PretrainedConfig):
         kernel_size: int = 3,
         num_groups: Optional[int] = None,
         dropout: float = 0.1,
-        activation: str = "silu",
+        activation: str = "snake",
         autoencoder: bool = True,
-        max_length: int = 24000,
-        sample_rate: int = 24000,
+        max_length: int = 48000,
+        sample_rate: int = 48000,
         norm_type: str = "layer",
         **kwargs: Any,
     ) -> None:

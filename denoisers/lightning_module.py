@@ -143,9 +143,7 @@ class DenoisersLightningModule(LightningModule):
         """Before optimizer step."""
         self.log_dict(grad_norm(self, norm_type=1))
 
-    def configure_optimizers(
-        self,
-    ) -> dict[str, torch.optim.lr_scheduler.LRScheduler | torch.optim.Optimizer]:
+    def configure_optimizers(self) -> Any:
         """Set optimizer."""
         optimizer = torch.optim.AdamW(
             self.model.parameters(), lr=1e-4, weight_decay=1e-2

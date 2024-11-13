@@ -17,3 +17,5 @@ matplotlib
 pedalboard
 transformers
 pesq
+audiomentations
+pydub
