@@ -65,7 +65,7 @@ class DenoisersLightningModule(LightningModule):
         else:
             l1_loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
 
-        stft_loss = self.stft_loss(outputs.audio, batch.audio)
+        stft_loss = self.stft_loss(outputs.audio.float(), batch.audio.float())
 
         loss = l1_loss + stft_loss
 
@@ -87,7 +87,7 @@ class DenoisersLightningModule(LightningModule):
         else:
             l1_loss = self.loss_fn(outputs.noise, batch.noisy - batch.audio)
 
-        stft_loss = self.stft_loss(outputs.audio, batch.audio)
+        stft_loss = self.stft_loss(outputs.audio.float(), batch.audio.float())
 
         loss = l1_loss + stft_loss
 
