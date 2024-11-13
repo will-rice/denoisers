@@ -93,7 +93,7 @@ class DenoisersLightningModule(LightningModule):
 
         metrics = self.val_metrics(outputs.audio, batch.audio)
         with torch.autocast(enabled=False, device_type=self.device.type):
-            pesq = self.pesq(outputs.audio, batch.audio)
+            pesq = self.pesq(outputs.audio.float(), batch.audio.float())
 
         self.log("val_loss", loss, prog_bar=True)
         self.log_dict(
