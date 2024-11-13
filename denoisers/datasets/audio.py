@@ -36,7 +36,7 @@ class AudioDataset(Dataset):
             self._samples.extend(list(self._root.glob(f"**/*{ext}")))
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._sample_rates = [8000, 16000, 22050, 24000, 44100, 48000]
+        self._sample_rates = [8000, 16000, 22050, 24000, 32000, 44100, 48000]
 
         self._transforms = Compose(
             [
