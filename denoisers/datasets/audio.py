@@ -36,6 +36,7 @@ class AudioDataset(Dataset):
             self._samples.extend(list(self._root.glob(f"**/*{ext}")))
         self._max_length = max_length
         self._sample_rate = sample_rate
+        self._sample_rates = [8000, 16000, 32000, 44100, 48000]
 
         self._transforms = Compose(
             [
@@ -57,11 +58,11 @@ class AudioDataset(Dataset):
         path = self._samples[idx]
         audio, sr = torchaudio.load(str(path))
 
-        if sr != self._sample_rate:
-            audio = torchaudio.functional.resample(audio, sr, self._sample_rate)
-
         if audio.size(0) > 1:
             audio = audio.mean(0, keepdim=True)
+
+        new_sr = random.choice(self._sample_rates)
+        audio = torchaudio.functional.resample(audio, sr, new_sr)
 
         audio_length = min(audio.size(-1), self._max_length)
 
@@ -72,7 +73,7 @@ class AudioDataset(Dataset):
             start_idx = random.randint(0, audio.size(-1) - self._max_length)
             audio = audio[:, start_idx : start_idx + self._max_length]
 
-        noisy = self._transforms(audio.clone().numpy(), sample_rate=self._sample_rate)
+        noisy = self._transforms(audio.clone().numpy(), sample_rate=new_sr)
         noisy = torch.from_numpy(noisy)
 
         return Batch(audio=audio, noisy=noisy, lengths=torch.tensor(audio_length))
