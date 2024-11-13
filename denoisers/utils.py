@@ -33,9 +33,9 @@ def plot_image_batch(
     name: str,
 ) -> None:
     """Plot a batch of images and log them to wandb."""
-    np_clean = clean.squeeze(1).cpu().detach().numpy()[:5]
-    np_noisy = noisy.squeeze(1).cpu().detach().numpy()[:5]
-    np_preds = preds.squeeze(1).cpu().detach().numpy()[:5]
+    np_clean = clean.squeeze(1).float().numpy(force=True)[:5]
+    np_noisy = noisy.squeeze(1).float().numpy(force=True)[:5]
+    np_preds = preds.squeeze(1).float().numpy(force=True)[:5]
 
     fig, ax = plt.subplots(len(np_clean), 3, figsize=(20, 5 * len(np_clean)))
     for i, (c, n, p) in enumerate(zip(np_clean, np_noisy, np_preds)):
@@ -64,9 +64,9 @@ def plot_image_from_audio(
     name: str,
 ) -> None:
     """Plot a batch of images and log them to wandb."""
-    clean = clean.squeeze(1).cpu().detach()[:5]
-    noisy = noisy.squeeze(1).cpu().detach()[:5]
-    preds = preds.squeeze(1).cpu().detach()[:5]
+    clean = clean.squeeze(1).float().cpu().detach()[:5]
+    noisy = noisy.squeeze(1).float().cpu().detach()[:5]
+    preds = preds.squeeze(1).float().cpu().detach()[:5]
 
     fig, ax = plt.subplots(len(clean), 3, figsize=(20, 5 * len(clean)))
 
