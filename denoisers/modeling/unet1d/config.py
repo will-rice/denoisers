@@ -28,7 +28,7 @@ class UNet1DConfig(PretrainedConfig):
         kernel_size: int = 3,
         num_groups: Optional[int] = None,
         dropout: float = 0.1,
-        activation: str = "snake",
+        activation: str = "silu",
         autoencoder: bool = True,
         max_length: int = 48000,
         sample_rate: int = 48000,
