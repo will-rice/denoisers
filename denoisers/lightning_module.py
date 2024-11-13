@@ -49,6 +49,7 @@ class DenoisersLightningModule(LightningModule):
             }
         )
         self.pesq = PESQ()
+        self.pesq.to(torch.float32)
         self.autoencoder = self.model.config.autoencoder
         self.last_val_batch: dict[str, Any] = {}
 
