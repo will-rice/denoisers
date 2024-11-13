@@ -17,7 +17,6 @@ from torchmetrics.audio import (
 
 from denoisers.datasets.audio import Batch
 from denoisers.losses import MultiResolutionSTFTLoss
-from denoisers.metrics import PESQ
 from denoisers.utils import log_audio_batch, plot_image_from_audio
 
 
@@ -48,8 +47,6 @@ class DenoisersLightningModule(LightningModule):
                 "val_sisdr": ScaleInvariantSignalDistortionRatio(),
             }
         )
-        self.pesq = PESQ()
-        self.pesq.to(torch.float32)
         self.autoencoder = self.model.config.autoencoder
         self.last_val_batch: dict[str, Any] = {}
 
@@ -93,18 +90,9 @@ class DenoisersLightningModule(LightningModule):
         loss = l1_loss + stft_loss
 
         metrics = self.val_metrics(outputs.audio, batch.audio)
-        with torch.autocast(enabled=False, device_type=self.device.type):
-            pesq = self.pesq(outputs.audio.float(), batch.audio.float())
 
         self.log("val_loss", loss, prog_bar=True)
-        self.log_dict(
-            {
-                **metrics,
-                "pesq": pesq,
-                "val_stft_loss": stft_loss,
-                "val_l1_loss": l1_loss,
-            }
-        )
+        self.log_dict({**metrics, "val_stft_loss": stft_loss, "val_l1_loss": l1_loss})
 
         self.last_val_batch = {
             "outputs": (
