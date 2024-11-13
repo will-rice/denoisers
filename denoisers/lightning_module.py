@@ -2,6 +2,7 @@
 from typing import Any
 
 import torch
+from lightning_utilities.core.rank_zero import rank_zero_only
 from pytorch_lightning import LightningModule
 from pytorch_lightning.utilities import grad_norm
 from pytorch_lightning.utilities.memory import garbage_collection_cuda
@@ -115,6 +116,7 @@ class DenoisersLightningModule(LightningModule):
 
         return loss
 
+    @rank_zero_only
     def on_validation_epoch_end(self) -> None:
         """Val epoch end."""
         outputs = self.last_val_batch["outputs"]
