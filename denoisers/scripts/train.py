@@ -30,6 +30,7 @@ def main() -> None:
     parser.add_argument(
         "--num_devices",
         default=1 if torch.cuda.is_available() else None,
+        type=int,
     )
     parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--num_workers", default=4, type=int)
