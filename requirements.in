@@ -19,3 +19,4 @@ transformers
 pesq
 audiomentations
 pydub
+pyroomacoustics

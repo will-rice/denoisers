@@ -8,10 +8,8 @@ import torchaudio
 from audiomentations import (
     AddColorNoise,
     AddGaussianNoise,
-    AdjustDuration,
     Compose,
     Mp3Compression,
-    Resample,
     RoomSimulator,
 )
 from torch.utils.data import Dataset
@@ -41,14 +39,12 @@ class AudioDataset(Dataset):
 
         self._transforms = Compose(
             [
-                Resample(min_sample_rate=8000, max_sample_rate=48000, p=1.0),
                 RoomSimulator(
-                    p=0.5, leave_length_unchanged=True, use_ray_tracing=False
+                    p=0.8, leave_length_unchanged=True, use_ray_tracing=False
                 ),
-                AddColorNoise(p=0.5),
+                AddColorNoise(p=0.97),
                 AddGaussianNoise(p=0.97),
                 Mp3Compression(p=0.5),
-                AdjustDuration(duration_samples=max_length, p=1.0),
             ]
         )
 
@@ -60,6 +56,9 @@ class AudioDataset(Dataset):
         """Return item from dataset."""
         path = self._samples[idx]
         audio, sr = torchaudio.load(str(path))
+
+        if sr != self._sample_rate:
+            audio = torchaudio.functional.resample(audio, sr, self._sample_rate)
 
         if audio.size(0) > 1:
             audio = audio.mean(0, keepdim=True)
