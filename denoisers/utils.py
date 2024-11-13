@@ -100,9 +100,9 @@ def log_audio_batch(
     sample_rate: int = 24000,
 ) -> None:
     """Log a batch of audio to wandb."""
-    np_clean = clean.squeeze(1).cpu().detach().numpy()[0][: int(lengths[0])]
-    np_noisy = noisy.squeeze(1).cpu().detach().numpy()[0][: int(lengths[0])]
-    np_preds = preds.squeeze(1).cpu().detach().numpy()[0][: int(lengths[0])]
+    np_clean = clean.squeeze(1).float().numpy(force=True)[0][: int(lengths[0])]
+    np_noisy = noisy.squeeze(1).float().numpy(force=True)[0][: int(lengths[0])]
+    np_preds = preds.squeeze(1).float().numpy(force=True)[0][: int(lengths[0])]
 
     wandb.log(
         {
