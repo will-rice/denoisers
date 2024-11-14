@@ -22,7 +22,13 @@ class Batch(NamedTuple):
 class AudioDataset(Dataset):
     """Simple audio dataset."""
 
-    def __init__(self, root: Path, max_length: int, sample_rate: int) -> None:
+    def __init__(
+        self,
+        root: Path,
+        max_length: int,
+        sample_rate: int,
+        variable_sample_rate: bool = True,
+    ) -> None:
         super().__init__()
         self._root = root
         self._samples = []
@@ -31,6 +37,7 @@ class AudioDataset(Dataset):
         self._max_length = max_length
         self._sample_rate = sample_rate
         self._sample_rates = [8000, 16000, 22050, 24000, 32000, 44100, 48000]
+        self._variable_sample_rate = variable_sample_rate
 
         self._transforms = Compose(
             [
@@ -54,8 +61,13 @@ class AudioDataset(Dataset):
         if audio.size(0) > 1:
             audio = audio.mean(0, keepdim=True)
 
-        new_sr = random.choice(self._sample_rates)
-        audio = torchaudio.functional.resample(audio, sr, new_sr)
+        new_sr = (
+            random.choice(self._sample_rates)
+            if self._variable_sample_rate
+            else self._sample_rate
+        )
+        if sr != new_sr:
+            audio = torchaudio.functional.resample(audio, sr, new_sr)
 
         audio_length = min(audio.size(-1), self._max_length)
 
