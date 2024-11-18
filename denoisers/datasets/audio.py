@@ -5,7 +5,13 @@ from typing import NamedTuple
 
 import torch
 import torchaudio
-from audiomentations import AddColorNoise, AddGaussianNoise, Compose, RoomSimulator
+from audiomentations import (
+    AddColorNoise,
+    AddGaussianNoise,
+    Compose,
+    Mp3Compression,
+    RoomSimulator,
+)
 from torch.utils.data import Dataset
 
 SUPPORTED_EXTENSIONS = {".wav", ".flac", ".mp3"}
@@ -27,7 +33,7 @@ class AudioDataset(Dataset):
         root: Path,
         max_length: int,
         sample_rate: int,
-        variable_sample_rate: bool = True,
+        variable_sample_rate: bool = False,
     ) -> None:
         super().__init__()
         self._root = root
@@ -46,6 +52,7 @@ class AudioDataset(Dataset):
                 ),
                 AddColorNoise(p=0.97),
                 AddGaussianNoise(p=0.97),
+                Mp3Compression(p=0.5),
             ]
         )
 
@@ -57,9 +64,7 @@ class AudioDataset(Dataset):
         """Return item from dataset."""
         path = self._samples[idx]
         audio, sr = torchaudio.load(str(path))
-
-        if audio.size(0) > 1:
-            audio = audio.mean(0, keepdim=True)
+        audio = audio.mean(0, keepdim=True)
 
         new_sr = (
             random.choice(self._sample_rates)
