@@ -34,6 +34,8 @@ class AudioDataset(Dataset):
         self._samples = []
         for ext in SUPPORTED_EXTENSIONS:
             self._samples.extend(list(self._root.glob(f"**/*{ext}")))
+
+        self._samples = [s for s in self._samples if "mic2" in str(s)]
         self._max_length = max_length
         self._sample_rate = sample_rate
         self._sample_rates = [8000, 16000, 22050, 24000, 32000, 44100, 48000]
