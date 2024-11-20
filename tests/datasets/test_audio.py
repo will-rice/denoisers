@@ -1,8 +1,8 @@
 """Test audio datasets."""
+
 from pathlib import Path
 
 import torchaudio
-
 from denoisers.datasets.audio import AudioDataset
 from denoisers.testing import sine_wave
 

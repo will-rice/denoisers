@@ -1,10 +1,9 @@
 """Test transforms."""
+
 from pathlib import Path
 
 import torch
 import torchaudio
-from torch import Tensor
-
 from denoisers.testing import sine_wave
 from denoisers.transforms import (
     BreakTransform,
@@ -19,6 +18,7 @@ from denoisers.transforms import (
     TimeMask,
     VolTransform,
 )
+from torch import Tensor
 
 
 def test_gaussian_noise() -> None:

@@ -1,6 +1,6 @@
 """Tests for WaveUNet model."""
-import torch
 
+import torch
 from denoisers.modeling.modules import Downsample1D, Normalization, Upsample1D
 from denoisers.modeling.waveunet.model import WaveUNetConfig, WaveUNetModel
 from denoisers.modeling.waveunet.modules import DownsampleBlock1D, UpsampleBlock1D

@@ -1,6 +1,6 @@
 """Tests for WaveUNet model."""
-import torch
 
+import torch
 from denoisers.modeling.unet1d.model import UNet1DConfig, UNet1DModel
 
 

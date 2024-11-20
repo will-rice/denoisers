@@ -1,6 +1,6 @@
 """Test lightning module."""
-import torch
 
+import torch
 from denoisers import UNet1DConfig, UNet1DModel, WaveUNetConfig, WaveUNetModel
 from denoisers.datasets.audio import Batch
 from denoisers.lightning_module import DenoisersLightningModule

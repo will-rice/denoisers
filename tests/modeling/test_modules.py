@@ -1,6 +1,6 @@
 """Tests for modules."""
-import torch
 
+import torch
 from denoisers.modeling.modules import Activation, Downsample1D, Upsample1D
 
 
