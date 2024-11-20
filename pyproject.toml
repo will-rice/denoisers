@@ -18,6 +18,29 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "black>=24.10.0",
+    "flake8-black>=0.3.6",
+    "isort>=5.13.2",
+    "mypy>=1.13.0",
+    "pip-tools>=7.4.1",
+    "pydocstyle>=6.3.0",
+    "pytest>=8.3.3",
+    "pytest-cov>=6.0.0",
+    "pytorch-lightning>=2.4.0",
+    "ruff>=0.7.4",
+    "torch>=2.5.1",
+    "torchaudio>=2.5.1",
+    "torchvision>=0.20.1",
+    "wandb>=0.18.7",
+    "librosa>=0.10.2.post1",
+    "matplotlib>=3.9.2",
+    "pedalboard>=0.9.16",
+    "transformers>=4.46.3",
+    "pesq>=0.0.4",
+    "audiomentations>=0.37.0",
+    "pydub>=0.25.1",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/will-rice/denoisers"

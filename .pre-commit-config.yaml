@@ -34,7 +34,7 @@ repos:
       - id: mypy
         name: mypy
         language: system
-        entry: mypy denoisers
+        entry: mypy src
         pass_filenames: false
         always_run: true
       - id: pytest
