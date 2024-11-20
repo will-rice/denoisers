@@ -5,7 +5,13 @@ from typing import NamedTuple
 
 import torch
 import torchaudio
-from audiomentations import AddColorNoise, AddGaussianNoise, Compose, RoomSimulator
+from audiomentations import (
+    AddColorNoise,
+    AddGaussianNoise,
+    ClippingDistortion,
+    Compose,
+    RoomSimulator,
+)
 from torch.utils.data import Dataset
 
 SUPPORTED_EXTENSIONS = {".wav", ".flac", ".mp3"}
@@ -22,24 +28,16 @@ class Batch(NamedTuple):
 class AudioDataset(Dataset):
     """Simple audio dataset."""
 
-    def __init__(
-        self,
-        root: Path,
-        max_length: int,
-        sample_rate: int,
-        variable_sample_rate: bool = False,
-    ) -> None:
+    def __init__(self, root: Path, max_length: int, sample_rate: int) -> None:
         super().__init__()
         self._root = root
+
         self._samples = []
         for ext in SUPPORTED_EXTENSIONS:
             self._samples.extend(list(self._root.glob(f"**/*{ext}")))
 
-        self._samples = [s for s in self._samples if "mic2" in str(s)]
         self._max_length = max_length
         self._sample_rate = sample_rate
-        self._sample_rates = [8000, 16000, 22050, 24000, 32000, 44100, 48000]
-        self._variable_sample_rate = variable_sample_rate
 
         self._transforms = Compose(
             [
@@ -63,13 +61,8 @@ class AudioDataset(Dataset):
         if audio.shape[0] > 1:
             audio = audio.mean(0, keepdim=True)
 
-        new_sr = (
-            random.choice(self._sample_rates)
-            if self._variable_sample_rate
-            else self._sample_rate
-        )
-        if sr != new_sr:
-            audio = torchaudio.functional.resample(audio, sr, new_sr)
+        if sr != self._sample_rate:
+            audio = torchaudio.functional.resample(audio, sr, self._sample_rate)
 
         audio_length = min(audio.size(-1), self._max_length)
 
@@ -80,7 +73,7 @@ class AudioDataset(Dataset):
             start_idx = random.randint(0, audio.size(-1) - self._max_length)
             audio = audio[:, start_idx : start_idx + self._max_length]
 
-        noisy = self._transforms(audio.clone().numpy(), sample_rate=new_sr)
+        noisy = self._transforms(audio.clone().numpy(), sample_rate=self._sample_rate)
         noisy = torch.from_numpy(noisy)
 
         return Batch(audio=audio, noisy=noisy, lengths=torch.tensor(audio_length))
