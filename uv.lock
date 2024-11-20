@@ -656,7 +656,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.9.2" },
     { name = "mypy", specifier = ">=1.13.0" },
     { name = "pedalboard", specifier = ">=0.9.16" },
-    { name = "pesq", specifier = ">=0.0.4" },
+    { name = "pesq", git = "https://github.com/ludlows/PESQ.git" },
     { name = "pip-tools", specifier = ">=7.4.1" },
     { name = "pydocstyle", specifier = ">=6.3.0" },
     { name = "pydub", specifier = ">=0.25.1" },
@@ -1866,9 +1866,11 @@ wheels = [
 
 [[package]]
 name = "pesq"
-version = "0.0.4"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/22/e6/f8bdcef3238ac10fb3ce37d150e9b03a152d971febd681f088c6e5e17d8e/pesq-0.0.4.tar.gz", hash = "sha256:b724b28f73fb638522982bd68e8c3c0957e2f45210639a460233b17aa7fc890b", size = 38702 }
+version = "0.0.5"
+source = { git = "https://github.com/ludlows/PESQ.git#af8fb1b636257aab77f1086e46bdeea281382369" }
+dependencies = [
+    { name = "numpy", marker = "python_full_version >= '3.9' or sys_platform == 'linux'" },
+]
 
 [[package]]
 name = "pillow"

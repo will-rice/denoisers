@@ -65,6 +65,9 @@ filterwarnings = [
     "ignore::DeprecationWarning",
 ]
 
+[tool.uv.sources]
+pesq = { git = "https://github.com/ludlows/PESQ.git" }
+
 [project.scripts]
 train = "denoisers.scripts.train:main"
 publish = "denoisers.scripts.publish:main"
