@@ -20,17 +20,6 @@ repos:
         args: ["--fix"]
   - repo: local
     hooks:
-      - id: black
-        name: black
-        language: system
-        entry: black
-        types: [python]
-      - id: isort
-        name: isort
-        language: system
-        entry: isort
-        args: ["--profile", "black"]
-        types: [python]
       - id: mypy
         name: mypy
         language: system

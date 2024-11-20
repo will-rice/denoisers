@@ -40,6 +40,7 @@ dependencies = [
     "pesq>=0.0.4",
     "audiomentations>=0.37.0",
     "pydub>=0.25.1",
+    "pyroomacoustics>=0.8.2",
 ]
 
 [project.urls]
