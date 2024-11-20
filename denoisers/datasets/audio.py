@@ -5,13 +5,7 @@ from typing import NamedTuple
 
 import torch
 import torchaudio
-from audiomentations import (
-    AddColorNoise,
-    AddGaussianNoise,
-    ClippingDistortion,
-    Compose,
-    RoomSimulator,
-)
+from audiomentations import AddColorNoise, AddGaussianNoise, Compose, RoomSimulator
 from torch.utils.data import Dataset
 
 SUPPORTED_EXTENSIONS = {".wav", ".flac", ".mp3"}
