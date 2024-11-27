@@ -1,4 +1,5 @@
 """Test transforms."""
+
 from pathlib import Path
 
 import torch
@@ -125,8 +126,8 @@ def test_noise_from_file(tmpdir) -> None:
     save_path.mkdir(exist_ok=True, parents=True)
 
     audio = sine_wave(800, 1, 16000)
-    torchaudio.save(save_path / "noise.flac", torch.randn_like(audio), 16000)
-    noise, _ = torchaudio.load(save_path / "noise.flac")
+    torchaudio.save(str(save_path / "noise.flac"), torch.randn_like(audio), 16000)
+    noise, _ = torchaudio.load(str(save_path / "noise.flac"))
 
     transform = NoiseFromFile(save_path, p=1.0, sample_rate=16000, num_samples=1)
     noisy_audio = transform(audio.numpy())

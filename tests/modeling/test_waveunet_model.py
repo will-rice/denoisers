@@ -1,12 +1,10 @@
 """Tests for WaveUNet model."""
+
 import torch
 
-from denoisers.datamodules.waveunet import Batch
-from denoisers.modeling.waveunet.model import (
-    WaveUNetConfig,
-    WaveUNetLightningModule,
-    WaveUNetModel,
-)
+from denoisers.modeling.modules import Downsample1D, Normalization, Upsample1D
+from denoisers.modeling.waveunet.model import WaveUNetConfig, WaveUNetModel
+from denoisers.modeling.waveunet.modules import DownsampleBlock1D, UpsampleBlock1D
 
 
 def test_config() -> None:
@@ -51,33 +49,33 @@ def test_model() -> None:
     assert audio.shape == recon.shape
 
 
-def test_lightning_module() -> None:
-    """Test lightning module."""
-    config = WaveUNetConfig(
-        max_length=16384,
-        sample_rate=16000,
-        in_channels=(1, 2, 3),
-        downsample_kernel_size=3,
-        upsample_kernel_size=3,
-    )
-    model = WaveUNetLightningModule(config)
+def test_upsample_block_1d():
+    """Test upsample block 1d."""
+    block = UpsampleBlock1D(1, 2, 3, 0.1, "leaky_relu", True)
 
-    audio = torch.randn(1, 1, config.max_length)
-    batch = Batch(audio=audio, noisy=audio, lengths=torch.tensor([audio.shape[-1]]))
+    assert isinstance(block, UpsampleBlock1D)
+    assert isinstance(block.upsample, Upsample1D)
+    assert isinstance(block.norm, Normalization)
+    assert isinstance(block.activation.activation, torch.nn.LeakyReLU)
+    assert isinstance(block.dropout, torch.nn.Dropout)
 
-    # test forward
-    with torch.no_grad():
-        recon = model(audio).audio
+    audio = torch.randn(1, 1, 800)
+    out = block(audio)
 
-    assert isinstance(recon, torch.Tensor)
-    assert audio.shape == recon.shape
+    assert out.shape == (1, 2, 1600)
 
-    # test training step
-    loss = model.training_step(batch, 0)
-    assert isinstance(loss, torch.Tensor)
-    assert loss.shape == torch.Size([])
 
-    # test validation step
-    loss = model.validation_step(batch, 0)
-    assert isinstance(loss, torch.Tensor)
-    assert loss.shape == torch.Size([])
+def test_downsample_block_1d():
+    """Test downsample block 1d."""
+    block = DownsampleBlock1D(1, 2, 3, 2, 0.1, "leaky_relu", True)
+
+    assert isinstance(block, DownsampleBlock1D)
+    assert isinstance(block.downsample, Downsample1D)
+    assert isinstance(block.norm, Normalization)
+    assert isinstance(block.activation.activation, torch.nn.LeakyReLU)
+    assert isinstance(block.dropout, torch.nn.Dropout)
+
+    audio = torch.randn(1, 1, 800)
+    out = block(audio)
+
+    assert out.shape == (1, 2, 400)

@@ -18,26 +18,53 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+    "mypy>=1.13.0",
+    "pydocstyle>=6.3.0",
+    "pytest>=8.3.3",
+    "pytorch-lightning>=2.4.0",
+    "ruff>=0.7.4",
+    "torch>=2.5.1",
+    "torchaudio>=2.5.1",
+    "torchvision>=0.20.1",
+    "wandb>=0.18.7",
+    "matplotlib>=3.9.2",
+    "pedalboard>=0.9.16",
+    "pydub>=0.25.1",
+    "pyroomacoustics>=0.8.2",
+    "pre-commit>=4.0.1",
+    "librosa>=0.10.2.post1",
+    "transformers>=4.46.3",
+    "audiomentations>=0.37.0",
+    "onnxruntime>=1.20.1",
+    "pesq>=0.0.4",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/will-rice/denoisers"
 "Bug Tracker" = "https://github.com/will-rice/denoisers/issues"
 
-[tool.isort]
-known_first_party = ["denoisers"]
-
-[tool.ruff]
-ignore-init-module-imports = true
-
-ignore = ["S101"]
+[tool.ruff.lint.isort]
+known-first-party = ["denoisers"]
 
 [tool.ruff.lint]
 select = ["C", "E", "F", "I", "W", "D", "N", "B"]
+ignore = ["D107"]
+exclude = [".venv"]
 
-[tool.ruff.pydocstyle]
-convention = "numpy"
+[tool.ruff.lint.pydocstyle]
+convention = "google"
 
 [tool.pytest.ini_options]
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
+
+[tool.mypy]
+ignore_missing_imports = true
+follow_imports_for_stubs = true
+exclude = [".venv"]
+
+[project.scripts]
+train = "denoisers.scripts.train:main"
+publish = "denoisers.scripts.publish:main"

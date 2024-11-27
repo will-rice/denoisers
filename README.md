@@ -6,12 +6,13 @@ Denoisers is a denoising library for audio with a focus on simplicity and ease o
 
 [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/wrice/denoisers)
 
-
 ## Usage/Examples
 
 ```sh
 pip install denoisers
 ```
+
+### Inference
 
 ```python
 import torch
@@ -42,4 +43,20 @@ for i in tqdm(range(0, padded.shape[-1], chunk_size)):
     clean.append(clean_chunk.squeeze(0))
 
 denoised = torch.concat(clean, 1)[:, :audio.shape[-1]]
+```
+
+### Train
+
+```sh
+
+train unet1d unet1d-24khz /data_root/
+
+```
+
+### Publish
+
+```sh
+
+publish model model_name /path/to/model
+
 ```

@@ -1,12 +1,8 @@
 """Tests for WaveUNet model."""
+
 import torch
 
-from denoisers.datamodules.unet1d import Batch
-from denoisers.modeling.unet1d.model import (
-    UNet1DConfig,
-    UNet1DLightningModule,
-    UNet1DModel,
-)
+from denoisers.modeling.unet1d.model import UNet1DConfig, UNet1DModel
 
 
 def test_config():
@@ -47,35 +43,3 @@ def test_model() -> None:
 
     assert isinstance(recon, torch.Tensor)
     assert audio.shape == recon.shape
-
-
-def test_lightning_module() -> None:
-    """Test lightning module."""
-    config = UNet1DConfig(
-        max_length=16384,
-        sample_rate=16000,
-        in_channels=(2, 4, 6, 8),
-        kernel_size=3,
-        num_groups=2,
-    )
-    model = UNet1DLightningModule(config)
-
-    audio = torch.randn(1, 1, config.max_length)
-    batch = Batch(audio=audio, noisy=audio, lengths=torch.tensor([audio.shape[-1]]))
-
-    # test forward
-    with torch.no_grad():
-        recon = model(audio).audio
-
-    assert isinstance(recon, torch.Tensor)
-    assert audio.shape == recon.shape
-
-    # test training step
-    loss = model.training_step(batch, 0)
-    assert isinstance(loss, torch.Tensor)
-    assert loss.shape == torch.Size([])
-
-    # test validation step
-    loss = model.validation_step(batch, 0)
-    assert isinstance(loss, torch.Tensor)
-    assert loss.shape == torch.Size([])
