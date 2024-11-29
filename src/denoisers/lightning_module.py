@@ -91,12 +91,14 @@ class DenoisersLightningModule(LightningModule):
             {**metrics, "train_stft_loss": stft_loss, "train_l1_loss": l1_loss},
             sync_dist=self.sync_dist,
         )
+        if self.use_ema and self.global_rank == 0:
+            self.ema_model.update_parameters(self.model)
 
         return loss
 
     def validation_step(self, batch: Any, batch_idx: Any) -> torch.Tensor:
         """Val step."""
-        if self.use_ema:
+        if self.use_ema and self.global_rank == 0:
             outputs = self.ema_model(batch.noisy)
         else:
             outputs = self.model(batch.noisy)
@@ -164,11 +166,6 @@ class DenoisersLightningModule(LightningModule):
             self.model.push_to_hub(model_name)
 
         garbage_collection_cuda()
-
-    def on_before_zero_grad(self, *args: Any, **kwargs: Any) -> None:
-        """Update EMA model."""
-        if self.global_rank == 0 and self.use_ema:
-            self.ema_model.update_parameters(self.model)
 
     def on_before_optimizer_step(self, optimizer: Any) -> None:
         """Before optimizer step."""
