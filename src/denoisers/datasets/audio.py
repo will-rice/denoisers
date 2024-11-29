@@ -29,7 +29,7 @@ class AudioDataset(Dataset):
         root: Path,
         max_length: int,
         sample_rate: int,
-        variable_sample_rate: bool = True,
+        variable_sample_rate: bool = False,
     ) -> None:
         super().__init__()
         self._root = root
