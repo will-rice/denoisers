@@ -167,7 +167,7 @@ class DenoisersLightningModule(LightningModule):
 
     def on_before_zero_grad(self, *args: Any, **kwargs: Any) -> None:
         """Update EMA model."""
-        if self.use_ema:
+        if self.global_rank == 0 and self.use_ema:
             self.ema_model.update_parameters(self.model)
 
     def on_before_optimizer_step(self, optimizer: Any) -> None:
