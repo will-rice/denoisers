@@ -1,6 +1,6 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.1.0
+    rev: v5.0.0
     hooks:
       - id: check-ast
       - id: end-of-file-fixer
@@ -8,7 +8,7 @@ repos:
       - id: check-merge-conflict
       - id: requirements-txt-fixer
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: "cafd550"
+    rev: "v4.0.0-alpha.8"
     hooks:
       - id: prettier
         files: \.(css|less|scss|json|yaml|yml|html|md|mdx|js|jsx|ts|tsx|graphql|gql|vue|svelte|toml)$
