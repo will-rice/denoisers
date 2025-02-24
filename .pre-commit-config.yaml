@@ -17,18 +17,18 @@ repos:
       - id: ruff
         name: ruff
         language: system
-        entry: ruff check . --fix
+        entry: uv run ruff check . --fix
         pass_filenames: false
         always_run: true
       - id: mypy
         name: mypy
         language: system
-        entry: mypy .
+        entry: uv run mypy .
         pass_filenames: false
         always_run: true
       - id: pytest
         name: pytest
         language: system
-        entry: python -m pytest
+        entry: uv run python -m pytest
         pass_filenames: false
         always_run: true
