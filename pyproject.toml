@@ -37,7 +37,7 @@ dependencies = [
     "torchaudio>=2.5.1",
     "transformers>=4.46.3",
     "torchvision>=0.20.1",
-    "torchmetrics>=1.6.1",
+    "pytorch-lightning>=2.5.0.post0",
 ]
 
 [project.urls]
