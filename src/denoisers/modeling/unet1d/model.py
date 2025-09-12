@@ -1,6 +1,6 @@
 """UNet1D model."""
 
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 from torch import Tensor, nn
@@ -21,7 +21,7 @@ class UNet1DModelOutputs:
 class UNet1DModel(PreTrainedModel):
     """Pretrained UNet1D Model."""
 
-    config_class = UNet1DConfig
+    config_class: Any = UNet1DConfig
 
     def __init__(self, config: UNet1DConfig) -> None:
         super().__init__(config)
