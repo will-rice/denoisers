@@ -15,9 +15,13 @@ Denoisers is a comprehensive deep learning library for audio denoising with a fo
   - **UNet1D**: Custom architecture inspired by diffusion models, designed for efficiency and real-time processing
 
 - **Pre-trained Models**: Ready-to-use models available on Hugging Face Hub
+
 - **Easy Integration**: Simple API for both inference and training
+
 - **Production Ready**: Built with PyTorch Lightning for scalable training and deployment
+
 - **Comprehensive Metrics**: Advanced audio quality metrics including PESQ, STOI, and DNS-MOS
+
 - **Flexible Training**: Support for various loss functions, data augmentation, and training strategies
 
 ## 🚀 Quick Start
@@ -59,13 +63,13 @@ padded = torch.nn.functional.pad(audio, (0, padding))
 
 clean = []
 for i in tqdm(range(0, padded.shape[-1], chunk_size)):
-    audio_chunk = padded[:, i:i + chunk_size]
+    audio_chunk = padded[:, i : i + chunk_size]
     with torch.no_grad():
         clean_chunk = model(audio_chunk[None]).audio
     clean.append(clean_chunk.squeeze(0))
 
 # Concatenate results and remove padding
-denoised = torch.concat(clean, 1)[:, :audio.shape[-1]]
+denoised = torch.concat(clean, 1)[:, : audio.shape[-1]]
 
 # Save denoised audio
 torchaudio.save("clean_audio.wav", denoised, model.config.sample_rate)
@@ -171,7 +175,7 @@ config = WaveUNetConfig(
     sample_rate=16000,
     max_length=32768,
     activation="relu",
-    dropout=0.2
+    dropout=0.2,
 )
 ```
 
