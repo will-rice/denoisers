@@ -18,6 +18,7 @@ from torchmetrics.audio import (
     SignalNoiseRatio,
 )
 from torchmetrics.functional.audio import deep_noise_suppression_mean_opinion_score
+from transformers import PreTrainedModel
 
 from denoisers.datasets.audio import Batch
 from denoisers.losses import MultiResolutionSTFTLoss
@@ -30,7 +31,7 @@ class DenoisersLightningModule(LightningModule):
 
     def __init__(
         self,
-        model: nn.Module,
+        model: PreTrainedModel,
         sync_dist: bool = False,
         use_ema: bool = False,
         push_to_hub: bool = False,
@@ -61,7 +62,7 @@ class DenoisersLightningModule(LightningModule):
             }
         )
         self.dns_mos = DNSMOS()
-        self.autoencoder = self.model.config.autoencoder
+        self.autoencoder: bool = self.model.config.autoencoder
         self.sync_dist = sync_dist
         self.use_ema = use_ema
         self.push_to_hub = push_to_hub
@@ -161,7 +162,7 @@ class DenoisersLightningModule(LightningModule):
         self.model.save_pretrained(self.trainer.default_root_dir + "/" + model_name)
 
         if self.push_to_hub:
-            self.model.push_to_hub(model_name)
+            self.model.push_to_hub(model_name)  # type: ignore[arg-type]
 
         garbage_collection_cuda()
 

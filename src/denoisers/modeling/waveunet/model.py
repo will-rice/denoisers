@@ -1,6 +1,6 @@
 """WaveUNet Model."""
 
-from typing import Optional
+from typing import Any, Optional
 
 import torch
 from torch import nn
@@ -24,7 +24,7 @@ class WaveUNetModelOutputs:
 class WaveUNetModel(PreTrainedModel):
     """Pretrained WaveUNet Model."""
 
-    config_class = WaveUNetConfig
+    config_class: Any = WaveUNetConfig
 
     def __init__(self, config: WaveUNetConfig) -> None:
         super().__init__(config)
