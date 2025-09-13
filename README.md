@@ -77,10 +77,14 @@ torchaudio.save("clean_audio.wav", denoised, model.config.sample_rate)
 
 #### Available Pre-trained Models
 
-| Model                        | Sample Rate | Architecture | Use Case                        |
-| ---------------------------- | ----------- | ------------ | ------------------------------- |
-| `wrice/waveunet-vctk-24khz`  | 24kHz       | WaveUNet     | High-quality speech denoising   |
-| `wrice/unet1d-general-48khz` | 48kHz       | UNet1D       | General-purpose audio denoising |
+| Model                           | Sample Rate | Architecture | Use Case                      |
+| ------------------------------- | ----------- | ------------ | ----------------------------- |
+| `wrice/waveunet-vctk-24khz`     | 24kHz       | WaveUNet     | Efficient speech denoising    |
+| `wrice/waveunet-vctk-48khz`     | 48kHz       | WaveUNet     | High-quality speech denoising |
+| `wrice/unet1d-vctk-24khz`       | 24kHz       | UNet1D       | Efficient speech denoising    |
+| `wrice/unet1d-vctk-48khz`       | 48kHz       | UNet1D       | High-quality speech denoising |
+| `wrice/unet1d-vctk-8to48khz`    | 8-48kHz     | UNet1D       | Robust multi-rate denoising   |
+| `wrice/unet1d-xeno-canto-32khz` | 32kHz       | UNet1D       | Birdsong denoising            |
 
 ## 🏗️ Architecture Overview
 
