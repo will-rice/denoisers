@@ -261,7 +261,7 @@ threadpoolctl==3.5.0
     # via scikit-learn
 tokenizers==0.20.3
     # via transformers
-torch==2.5.1
+torch==2.8.0
     # via
     #   denoisers (pyproject.toml)
     #   pytorch-lightning
