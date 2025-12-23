@@ -49,7 +49,7 @@ filelock==3.16.1
     #   virtualenv
 flatbuffers==25.2.10
     # via onnxruntime
-fonttools==4.55.0
+fonttools==4.60.2
     # via matplotlib
 frozenlist==1.5.0
     # via
