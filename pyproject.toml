@@ -12,7 +12,7 @@ authors = [
 ]
 description = "A package for training audio denoisers"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
@@ -33,10 +33,10 @@ dependencies = [
     "audiomentations>=0.37.0",
     "onnxruntime>=1.20.1",
     "pesq>=0.0.4",
-    "torch>=2.5.1",
-    "torchaudio>=2.5.1",
+    "torch>=2.10.0",
+    "torchaudio>=2.10.0",
     "transformers>=4.48.0",
-    "torchvision>=0.20.1",
+    "torchvision>=0.25.0",
     "pytorch-lightning>=2.5.0.post0",
 ]
 
