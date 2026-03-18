@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Union
 
 import numpy as np
+import soundfile as sf
 import torch
 import torchaudio
 from pedalboard import Reverb  # type: ignore
@@ -284,7 +285,10 @@ class NoiseFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         noise_paths = random.choices(list(root.glob("**/*.flac")), k=num_samples)
-        self.noises = [torchaudio.load(str(noise))[0] for noise in noise_paths]
+        self.noises = [
+            torch.from_numpy(sf.read(str(noise), always_2d=True)[0].T).float()
+            for noise in noise_paths
+        ]
         print(f"Loaded {len(self.noises)} noises")
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
@@ -314,7 +318,10 @@ class ReverbFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         response_paths = random.choices(list(root.glob("**/*.wav")), k=num_samples)
-        self.responses = [torchaudio.load(str(r))[0] for r in response_paths]
+        self.responses = [
+            torch.from_numpy(sf.read(str(r), always_2d=True)[0].T).float()
+            for r in response_paths
+        ]
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
         """Forward Pass."""

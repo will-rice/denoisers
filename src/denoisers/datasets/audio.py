@@ -4,6 +4,7 @@ import random
 from pathlib import Path
 from typing import NamedTuple
 
+import soundfile as sf
 import torch
 import torchaudio
 from audiomentations import AddColorNoise, AddGaussianNoise, Compose, RoomSimulator
@@ -59,7 +60,8 @@ class AudioDataset(Dataset):
     def __getitem__(self, idx: int) -> Batch:
         """Return item from dataset."""
         path = self._paths[idx]
-        audio, sr = torchaudio.load(str(path))
+        audio_np, sr = sf.read(str(path), always_2d=True)  # (samples, channels)
+        audio = torch.from_numpy(audio_np.T).float()  # (channels, samples)
 
         if audio.shape[0] > 1:
             audio = audio.mean(0, keepdim=True)
