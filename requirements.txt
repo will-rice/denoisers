@@ -315,6 +315,8 @@ torch==2.10.0
     #   torchvision
 torchaudio==2.10.0
     # via denoisers (pyproject.toml)
+torchcodec==0.11.0
+    # via denoisers (pyproject.toml)
 torchmetrics==1.6.0
     # via pytorch-lightning
 torchvision==0.25.0
