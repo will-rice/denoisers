@@ -43,6 +43,8 @@ class WaveUNetConfig(PretrainedConfig):
         self.dropout = dropout
         self.activation = activation
         self.autoencoder = autoencoder
+        self.max_length = max_length
+        self.sample_rate = sample_rate
         self.norm_type = norm_type
         self.num_groups = num_groups
-        super().__init__(**kwargs, max_length=max_length, sample_rate=sample_rate)
+        super().__init__(**kwargs)

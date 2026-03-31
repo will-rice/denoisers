@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 import torch
-import torchaudio
 from audiomentations import AddColorNoise, AddGaussianNoise, Compose, RoomSimulator
 from torch.utils.data import Dataset
+from torchcodec.decoders import AudioDecoder
 
 SUPPORTED_EXTENSIONS = {".wav", ".flac", ".mp3", ".ogg"}
 SAMPLE_RATES = [8000, 16000, 22050, 24000, 32000, 44100, 48000]
@@ -59,18 +59,13 @@ class AudioDataset(Dataset):
     def __getitem__(self, idx: int) -> Batch:
         """Return item from dataset."""
         path = self._paths[idx]
-        audio, sr = torchaudio.load(str(path))
-
-        if audio.shape[0] > 1:
-            audio = audio.mean(0, keepdim=True)
-
         new_sr = (
             random.choice(SAMPLE_RATES)
             if self._variable_sample_rate
             else self._sample_rate
         )
-        if sr != self._sample_rate:
-            audio = torchaudio.functional.resample(audio, sr, new_sr)
+        decoder = AudioDecoder(path, sample_rate=new_sr, num_channels=1)
+        audio = decoder.get_all_samples().data
 
         audio_length = min(audio.shape[-1], self._max_length)
 
