@@ -35,4 +35,4 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Run pre-commit hook
         run: |
-          uv run pre-commit run -a
+          rm uv.lock && uv run pre-commit run -a
