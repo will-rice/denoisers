@@ -30,6 +30,10 @@ jobs:
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: |
+          uv venv
+          uv pip install --torch-backend=cpu -e .
       - name: Run pre-commit hook
         run: |
-          rm uv.lock && uv run --torch-backend=cpu pre-commit run -a
+          uv run pre-commit run -a
