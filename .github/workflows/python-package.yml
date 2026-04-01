@@ -17,9 +17,6 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
 
-    env:
-      UV_TORCH_BACKEND: cpu
-
     steps:
       - uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
@@ -35,4 +32,4 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Run pre-commit hook
         run: |
-          rm uv.lock && uv run pre-commit run -a
+          rm uv.lock && uv run --torch-backend=cpu pre-commit run -a
