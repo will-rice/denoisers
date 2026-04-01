@@ -12,7 +12,7 @@ authors = [
 ]
 description = "A package for training audio denoisers"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: Apache Software License",
@@ -23,26 +23,31 @@ dependencies = [
     "pydocstyle>=6.3.0",
     "pytest>=8.3.3",
     "ruff>=0.7.4",
-    "wandb>=0.18.7",
+    "wandb>=0.21.4",
     "matplotlib>=3.9.2",
-    "pedalboard>=0.9.16",
+    "pedalboard>=0.9.17",
     "pydub>=0.25.1",
     "pyroomacoustics>=0.8.2",
     "pre-commit>=4.0.1",
-    "librosa>=0.10.2.post1",
-    "audiomentations>=0.37.0",
-    "onnxruntime>=1.20.1",
+    "librosa>=0.11.0",
+    "audiomentations>=0.43.0",
+    "onnxruntime>=1.22.1",
+    "numpy<2.4",
     "pesq>=0.0.4",
-    "torch>=2.5.1",
-    "torchaudio>=2.5.1",
-    "transformers>=4.48.0",
-    "torchvision>=0.20.1",
-    "pytorch-lightning>=2.5.0.post0",
+    "torch>=2.11.0",
+    "torchaudio>=2.11.0",
+    "torchcodec>=0.11.0",
+    "transformers>=5.4.0",
+    "torchvision>=0.26.0",
+    "pytorch-lightning>=2.5.5",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/will-rice/denoisers"
 "Bug Tracker" = "https://github.com/will-rice/denoisers/issues"
+
+[tool.uv]
+torch-backend = "auto"
 
 [tool.ruff.lint.isort]
 known-first-party = ["denoisers"]

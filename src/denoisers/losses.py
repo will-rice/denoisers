@@ -128,7 +128,7 @@ class MultiResolutionSTFTLoss(nn.Module):
         super().__init__()
         assert len(fft_sizes) == len(hop_sizes) == len(win_lengths)
         self.stft_losses = torch.nn.ModuleList()
-        for fs, ss, wl in zip(fft_sizes, hop_sizes, win_lengths):
+        for fs, ss, wl in zip(fft_sizes, hop_sizes, win_lengths, strict=False):
             self.stft_losses += [STFTLoss(fs, ss, wl, window)]
         self.factor_sc = factor_sc
         self.factor_mag = factor_mag

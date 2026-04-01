@@ -39,7 +39,7 @@ def plot_image_batch(
     np_preds = preds.squeeze(1).float().numpy(force=True)[:5]
 
     fig, ax = plt.subplots(len(np_clean), 3, figsize=(20, 5 * len(np_clean)))
-    for i, (c, n, p) in enumerate(zip(np_clean, np_noisy, np_preds)):
+    for i, (c, n, p) in enumerate(zip(np_clean, np_noisy, np_preds, strict=False)):
         ax[i][0].imshow(c, origin="lower", aspect="auto")
         ax[i][0].axis("off")
         ax[i][0].title.set_text("clean")
@@ -71,7 +71,9 @@ def plot_image_from_audio(
 
     fig, ax = plt.subplots(len(clean), 3, figsize=(20, 5 * len(clean)))
 
-    for i, (c, n, p, length) in enumerate(zip(clean, noisy, preds, lengths)):
+    for i, (c, n, p, length) in enumerate(
+        zip(clean, noisy, preds, lengths, strict=False)
+    ):
         original_spec = librosa.power_to_db(SPEC_FN(c[:length]))
         noisy_spec = librosa.power_to_db(SPEC_FN(n[:length]))
         pred_spec = librosa.power_to_db(SPEC_FN(p[:length]))

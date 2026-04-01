@@ -40,21 +40,19 @@ pip install denoisers
 import torch
 import torchaudio
 from denoisers import WaveUNetModel
+from torchcodec.decoders import AudioDecoder
 from tqdm import tqdm
 
 # Load pre-trained model
 model = WaveUNetModel.from_pretrained("wrice/waveunet-vctk-24khz")
 
-# Load and preprocess audio
-audio, sr = torchaudio.load("noisy_audio.wav")
-
-# Resample if necessary
-if sr != model.config.sample_rate:
-    audio = torchaudio.functional.resample(audio, sr, model.config.sample_rate)
-
-# Convert to mono if stereo
-if audio.size(0) > 1:
-    audio = audio.mean(0, keepdim=True)
+# Load and preprocess audio (resamples and converts to mono automatically)
+decoder = AudioDecoder(
+    "noisy_audio.wav",
+    sample_rate=model.config.sample_rate,
+    num_channels=1,
+)
+audio = decoder.get_all_samples().data
 
 # Process audio in chunks to handle long files
 chunk_size = model.config.max_length

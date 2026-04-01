@@ -45,9 +45,9 @@ def test_unet1d_lightning_module() -> None:
     config = UNet1DConfig(
         max_length=16384,
         sample_rate=16000,
-        in_channels=(1, 2, 3),
-        downsample_kernel_size=3,
-        upsample_kernel_size=3,
+        channels=(2, 4, 6, 8),
+        kernel_size=3,
+        num_groups=2,
     )
     model = UNet1DModel(config)
     lightning_module = DenoisersLightningModule(model)

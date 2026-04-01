@@ -36,6 +36,7 @@ class WaveUNetModel(PreTrainedModel):
             dropout=config.dropout,
             activation=config.activation,
         )
+        self.post_init()
 
     def forward(self, inputs: torch.Tensor) -> WaveUNetModelOutputs:
         """Forward Pass."""
@@ -134,7 +135,7 @@ class WaveUNet(nn.Module):
 
         out = self.middle(out)
 
-        for skip, layer in zip(reversed(skips), self.decoder_layers):
+        for skip, layer in zip(reversed(skips), self.decoder_layers, strict=False):
             out = torch.concat([out[..., : skip.size(-1)], skip], dim=1)
             out = layer(out)
 
