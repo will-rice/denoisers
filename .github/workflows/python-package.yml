@@ -32,11 +32,9 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Sync dependencies
         run: |
-          uv sync
+          uv lock --upgrade && uv sync
         env:
           UV_TORCH_BACKEND: cpu
       - name: Run pre-commit hook
         run: |
           uv run pre-commit run -a
-        env:
-          UV_TORCH_BACKEND: cpu
