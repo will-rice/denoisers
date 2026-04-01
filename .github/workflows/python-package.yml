@@ -33,3 +33,5 @@ jobs:
       - name: Run pre-commit hook
         run: |
           uv run pre-commit run -a
+        env:
+          UV_TORCH_BACKEND: cpu
