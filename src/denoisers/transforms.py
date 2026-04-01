@@ -9,7 +9,6 @@ import torch
 import torchaudio
 from pedalboard import Reverb  # type: ignore
 from torch import Tensor, nn
-from torchcodec.decoders import AudioDecoder
 
 
 class GaussianNoise(nn.Module):
@@ -285,10 +284,12 @@ class NoiseFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         noise_paths = random.choices(list(root.glob("**/*.flac")), k=num_samples)
-        self.noises = [
-            AudioDecoder(p, sample_rate=sample_rate).get_all_samples().data
-            for p in noise_paths
-        ]
+        self.noises = []
+        for p in noise_paths:
+            waveform, orig_sr = torchaudio.load(p)
+            if orig_sr != sample_rate:
+                waveform = torchaudio.functional.resample(waveform, orig_sr, sample_rate)
+            self.noises.append(waveform)
         print(f"Loaded {len(self.noises)} noises")
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
@@ -318,10 +319,12 @@ class ReverbFromFile(nn.Module):
         self.p = p
         self.sample_rate = sample_rate
         response_paths = random.choices(list(root.glob("**/*.wav")), k=num_samples)
-        self.responses = [
-            AudioDecoder(p, sample_rate=sample_rate).get_all_samples().data
-            for p in response_paths
-        ]
+        self.responses = []
+        for p in response_paths:
+            waveform, orig_sr = torchaudio.load(p)
+            if orig_sr != sample_rate:
+                waveform = torchaudio.functional.resample(waveform, orig_sr, sample_rate)
+            self.responses.append(waveform)
 
     def forward(self, x: Union[Tensor, np.ndarray]) -> Union[Tensor, np.ndarray]:
         """Forward Pass."""

@@ -36,7 +36,6 @@ dependencies = [
     "pesq>=0.0.4",
     "torch>=2.11.0",
     "torchaudio>=2.11.0",
-    "torchcodec>=0.11.0",
     "transformers>=5.4.0",
     "torchvision>=0.26.0",
     "pytorch-lightning>=2.5.5",
