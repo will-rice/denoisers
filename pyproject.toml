@@ -46,6 +46,9 @@ dependencies = [
 "Homepage" = "https://github.com/will-rice/denoisers"
 "Bug Tracker" = "https://github.com/will-rice/denoisers/issues"
 
+[tool.uv]
+torch-backend = "auto"
+
 [tool.ruff.lint.isort]
 known-first-party = ["denoisers"]
 

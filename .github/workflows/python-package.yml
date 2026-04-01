@@ -32,4 +32,4 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Run pre-commit hook
         run: |
-          uv run --torch-backend=auto pre-commit run -a
+          uv run pre-commit run -a
