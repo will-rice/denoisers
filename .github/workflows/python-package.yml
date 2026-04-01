@@ -30,6 +30,11 @@ jobs:
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Sync dependencies
+        run: |
+          uv sync
+        env:
+          UV_TORCH_BACKEND: cpu
       - name: Run pre-commit hook
         run: |
           uv run pre-commit run -a
