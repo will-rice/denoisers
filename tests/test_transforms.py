@@ -5,6 +5,7 @@ from pathlib import Path
 import torch
 import torchaudio
 from torch import Tensor
+from torchcodec.decoders import AudioDecoder
 
 from denoisers.testing import sine_wave
 from denoisers.transforms import (
@@ -127,7 +128,9 @@ def test_noise_from_file(tmpdir) -> None:
 
     audio = sine_wave(800, 1, 16000)
     torchaudio.save(str(save_path / "noise.flac"), torch.randn_like(audio), 16000)
-    noise, _ = torchaudio.load(str(save_path / "noise.flac"))
+    noise = AudioDecoder(
+        save_path / "noise.flac", sample_rate=16000
+    ).get_all_samples().data
 
     transform = NoiseFromFile(save_path, p=1.0, sample_rate=16000, num_samples=1)
     noisy_audio = transform(audio.numpy())

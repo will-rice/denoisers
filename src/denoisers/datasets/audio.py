@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import NamedTuple
 
 import torch
-import torchaudio
 from audiomentations import AddColorNoise, AddGaussianNoise, Compose, RoomSimulator
 from torch.utils.data import Dataset
+from torchcodec.decoders import AudioDecoder
 
 SUPPORTED_EXTENSIONS = {".wav", ".flac", ".mp3", ".ogg"}
 SAMPLE_RATES = [8000, 16000, 22050, 24000, 32000, 44100, 48000]
@@ -64,11 +64,8 @@ class AudioDataset(Dataset):
             if self._variable_sample_rate
             else self._sample_rate
         )
-        audio, orig_sr = torchaudio.load(path)
-        if audio.shape[0] > 1:
-            audio = audio.mean(dim=0, keepdim=True)
-        if orig_sr != new_sr:
-            audio = torchaudio.functional.resample(audio, orig_sr, new_sr)
+        decoder = AudioDecoder(path, sample_rate=new_sr, num_channels=1)
+        audio = decoder.get_all_samples().data
 
         audio_length = min(audio.shape[-1], self._max_length)
 

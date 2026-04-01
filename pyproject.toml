@@ -34,10 +34,11 @@ dependencies = [
     "onnxruntime>=1.22.1",
     "numpy<2.4",
     "pesq>=0.0.4",
-    "torch>=2.11.0",
-    "torchaudio>=2.11.0",
+    "torch==2.10.0",
+    "torchaudio==2.10.0",
+    "torchvision==0.25.0",
+    "torchcodec==0.10.0",
     "transformers>=5.4.0",
-    "torchvision>=0.26.0",
     "pytorch-lightning>=2.5.5",
 ]
 
@@ -47,6 +48,14 @@ dependencies = [
 
 [tool.uv]
 torch-backend = "auto"
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torchcodec = { index = "pytorch-cpu" }
 
 [tool.ruff.lint.isort]
 known-first-party = ["denoisers"]
