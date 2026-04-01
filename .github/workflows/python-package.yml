@@ -32,4 +32,4 @@ jobs:
           curl -LsSf https://astral.sh/uv/install.sh | sh
       - name: Run pre-commit hook
         run: |
-          uv run pre-commit run -a
+          uv run --extra-index-url https://download.pytorch.org/whl/cpu pre-commit run -a
