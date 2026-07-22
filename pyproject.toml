@@ -19,35 +19,32 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "mypy>=1.13.0",
+    "mypy>=2.3.0",
     "pydocstyle>=6.3.0",
-    "pytest>=8.3.3",
-    "ruff>=0.7.4",
-    "wandb>=0.21.4",
-    "matplotlib>=3.9.2",
-    "pedalboard>=0.9.17",
+    "pytest>=9.1.1",
+    "ruff>=0.15.22",
+    "wandb>=0.28.1",
+    "matplotlib>=3.10.9",
+    "pedalboard>=0.9.24",
     "pydub>=0.25.1",
-    "pyroomacoustics>=0.8.2",
-    "pre-commit>=4.0.1",
+    "pyroomacoustics>=0.10.1",
+    "pre-commit>=4.6.1",
     "librosa>=0.11.0",
-    "audiomentations>=0.43.0",
-    "onnxruntime>=1.22.1",
-    "numpy<2.4",
+    "audiomentations>=0.43.1",
+    "onnxruntime>=1.24.3",
+    "numpy>=2.0",
     "pesq>=0.0.4",
     "torch>=2.11.0",
     "torchaudio>=2.11.0",
-    "torchcodec>=0.11.0",
+    "torchcodec>=0.15.0",
     "transformers>=5.4.0",
     "torchvision>=0.26.0",
-    "pytorch-lightning>=2.5.5",
+    "pytorch-lightning>=2.6.5",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/will-rice/denoisers"
 "Bug Tracker" = "https://github.com/will-rice/denoisers/issues"
-
-[tool.uv]
-torch-backend = "auto"
 
 [tool.ruff.lint.isort]
 known-first-party = ["denoisers"]

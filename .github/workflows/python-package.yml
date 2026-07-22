@@ -18,9 +18,9 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -30,8 +30,18 @@ jobs:
       - name: Install uv
         run: |
           curl -LsSf https://astral.sh/uv/install.sh | sh
+      - name: Install dependencies
+        run: |
+          uv sync
+      - name: Install CPU PyTorch
+        run: |
+          uv pip install torch torchaudio torchvision torchcodec --index-url https://download.pytorch.org/whl/cpu --reinstall
+      - name: Verify CPU torch
+        run: |
+          uv run --no-sync python -c "import torch; print(f'torch={torch.__version__}'); assert 'cu' not in torch.__version__, 'CUDA torch detected'"
+          uv run --no-sync python -c "from torchcodec.decoders import AudioDecoder; print('torchcodec OK')"
       - name: Run pre-commit hook
         run: |
-          uv run pre-commit run -a
+          uv run --no-sync pre-commit run -a
         env:
-          UV_TORCH_BACKEND: cpu
+          UV_NO_SYNC: "1"
