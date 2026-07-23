@@ -2,7 +2,7 @@
 
 **Recommendation up front:** add a **waveform-domain Schrödinger-bridge / data-to-data flow-matching denoiser** (`FlowUNet1D`) that extends the existing `UNet1D` with a time embedding, trains with a **data-prediction (x₀) objective reusing the repo's existing L1 + multi-resolution STFT losses**, and samples in **1–8 steps starting from the noisy waveform**. At 1 step it degenerates to (a regularized version of) the repo's current predictive denoiser — so the worst case is parity, and the upside is multi-step generative refinement, better perceptual quality, and better out-of-distribution robustness. No GAN discriminator, no gaussian-noise prior, no vocoder.
 
----
+______________________________________________________________________
 
 ## 1. Why generative at all?
 
@@ -18,14 +18,14 @@ Generative denoisers model the full posterior p(clean | noisy) and consistently 
 
 ### 2.1 Score-based diffusion (SGMSE lineage)
 
-| System | Domain | Steps (NFE) | VB-DMD PESQ / SI-SDR | Notes |
-|---|---|---|---|---|
-| SGMSE (Interspeech 2022, arXiv:2203.17004) | complex STFT | 50 PC | 2.28 / 16.2 | OUVE SDE: OU drift toward noisy y + VE noise |
-| SGMSE+ (TASLP 2023, arXiv:2208.05830) | complex STFT | 60 (RTF 1.77) | 2.93 / 17.3 | NCSN++ 65M; best generalization of its era |
-| CDiffuSE (ICASSP 2022, arXiv:2202.05256) | **waveform** | 50–200 | 2.52 / 12.4 | gaussian-endpoint DDPM; **no-op at 48 kHz** (EARS: POLQA 1.81 vs noisy 1.71, 42 s/audio-s) |
-| StoRM (TASLP 2023, arXiv:2212.11851) | complex STFT | 10–20 | 2.93 / 18.8 | predictive stage → diffusion "regeneration"; kills vocalizing/breathing artifacts, 10× fewer steps |
-| UNIVERSE / UNIVERSE++ (arXiv:2206.03065, 2406.12194) | waveform 16/24 kHz | 4–8 | ++: 2.93 / – (WER 2.9% w/ phoneme LoRA) | rich conditioner → few steps; hallucination fixed with CTC loss |
-| EARS 48 kHz benchmark (Interspeech 2024, arXiv:2406.06185) | — | — | — | SGMSE+ retuned (1534-pt STFT) is best 48 kHz system, but RTF ≈ 2.6 |
+| System                                                     | Domain             | Steps (NFE)   | VB-DMD PESQ / SI-SDR                    | Notes                                                                                              |
+| ---------------------------------------------------------- | ------------------ | ------------- | --------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| SGMSE (Interspeech 2022, arXiv:2203.17004)                 | complex STFT       | 50 PC         | 2.28 / 16.2                             | OUVE SDE: OU drift toward noisy y + VE noise                                                       |
+| SGMSE+ (TASLP 2023, arXiv:2208.05830)                      | complex STFT       | 60 (RTF 1.77) | 2.93 / 17.3                             | NCSN++ 65M; best generalization of its era                                                         |
+| CDiffuSE (ICASSP 2022, arXiv:2202.05256)                   | **waveform**       | 50–200        | 2.52 / 12.4                             | gaussian-endpoint DDPM; **no-op at 48 kHz** (EARS: POLQA 1.81 vs noisy 1.71, 42 s/audio-s)         |
+| StoRM (TASLP 2023, arXiv:2212.11851)                       | complex STFT       | 10–20         | 2.93 / 18.8                             | predictive stage → diffusion "regeneration"; kills vocalizing/breathing artifacts, 10× fewer steps |
+| UNIVERSE / UNIVERSE++ (arXiv:2206.03065, 2406.12194)       | waveform 16/24 kHz | 4–8           | ++: 2.93 / – (WER 2.9% w/ phoneme LoRA) | rich conditioner → few steps; hallucination fixed with CTC loss                                    |
+| EARS 48 kHz benchmark (Interspeech 2024, arXiv:2406.06185) | —                  | —             | —                                       | SGMSE+ retuned (1534-pt STFT) is best 48 kHz system, but RTF ≈ 2.6                                 |
 
 Documented failure modes (survey: Lemercier et al., IEEE SPM 2024, arXiv:2402.09821): vocalizing/breathing artifacts, speech inpainted into noise-only regions, phonetic confusions at negative SNR, systematically lower SI-SDR than predictive baselines, and step-count collapse below ~10 NFE without fixes.
 
@@ -35,35 +35,35 @@ Two important negative results from the design-space study (Gonzalez et al., TAS
 
 The decisive 2024–2026 development: replace "gaussian noise → clean, conditioned on noisy" with a **data-to-data bridge whose endpoints are (clean, noisy)**. Reverse sampling starts *at the actual noisy signal*.
 
-| System | Domain | NFE | VB-DMD PESQ / SI-SDR @ NFE=1 | Notes |
-|---|---|---|---|---|
-| SB for SE (NVIDIA, Interspeech 2024, arXiv:2407.16074) | complex STFT | 3–50 | — | beats SGMSE+ by +0.5 PESQ / +3 dB SI-SDR / ~half WER on WSJ0-CHiME3; data-prediction loss + time-domain L1 |
-| SB-PESQ (ICASSP 2025, arXiv:2409.10753) | complex STFT | 1–16 | 3.45 / ~14 | nearly flat from NFE 1→16 — DP-trained bridges are quasi-one-step |
-| SBCTM (Sony, arXiv:2507.11925) | complex STFT | **1** | **3.56** / 12.2 | consistency-trajectory distillation; RTF 0.045; dropped GAN aux loss for stability |
-| SB-RF (Xiaomi, arXiv:2606.05575) | complex STFT | **1** | 3.39 / **19.5** | from scratch, no distillation; best 1-step fidelity balance |
-| ROSE-CD (WASPAA 2025, arXiv:2507.05688) | complex STFT | **1** | 3.49 / 17.8 | consistency distillation, 54× faster than teacher |
-| MeanFlowSE (Xiamen, arXiv:2509.14858) | complex STFT | **1** | 2.94 / 19.98 | MeanFlow identity, no distillation; needs curriculum |
-| MeanFlowSE (NWPU, arXiv:2509.23299) | VAE latent | **1** | DNS OVRL 3.368, WER 8.5% | RTF 0.013, 40.7M params; WavLM conditioning critical |
-| ARFSE (arXiv:2606.20001) | complex STFT | 1–5 | 3.00 / 19.9 | time-embedding-free rectified flow, RTF 0.02 |
-| "Rethinking Flow & Diffusion Bridges" (AAAI-26, arXiv:2602.18355) | — | 1–5 | — | **unifying analysis**: with a data-prediction loss, a bridge model is an *augmented predictive model*; 1-step sampling ≡ prediction; TF-GridNet-backbone bridge at 2.2M params matches/beats NCSN++ 65M |
+| System                                                            | Domain       | NFE   | VB-DMD PESQ / SI-SDR @ NFE=1 | Notes                                                                                                                                                                                                   |
+| ----------------------------------------------------------------- | ------------ | ----- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SB for SE (NVIDIA, Interspeech 2024, arXiv:2407.16074)            | complex STFT | 3–50  | —                            | beats SGMSE+ by +0.5 PESQ / +3 dB SI-SDR / ~half WER on WSJ0-CHiME3; data-prediction loss + time-domain L1                                                                                              |
+| SB-PESQ (ICASSP 2025, arXiv:2409.10753)                           | complex STFT | 1–16  | 3.45 / ~14                   | nearly flat from NFE 1→16 — DP-trained bridges are quasi-one-step                                                                                                                                       |
+| SBCTM (Sony, arXiv:2507.11925)                                    | complex STFT | **1** | **3.56** / 12.2              | consistency-trajectory distillation; RTF 0.045; dropped GAN aux loss for stability                                                                                                                      |
+| SB-RF (Xiaomi, arXiv:2606.05575)                                  | complex STFT | **1** | 3.39 / **19.5**              | from scratch, no distillation; best 1-step fidelity balance                                                                                                                                             |
+| ROSE-CD (WASPAA 2025, arXiv:2507.05688)                           | complex STFT | **1** | 3.49 / 17.8                  | consistency distillation, 54× faster than teacher                                                                                                                                                       |
+| MeanFlowSE (Xiamen, arXiv:2509.14858)                             | complex STFT | **1** | 2.94 / 19.98                 | MeanFlow identity, no distillation; needs curriculum                                                                                                                                                    |
+| MeanFlowSE (NWPU, arXiv:2509.23299)                               | VAE latent   | **1** | DNS OVRL 3.368, WER 8.5%     | RTF 0.013, 40.7M params; WavLM conditioning critical                                                                                                                                                    |
+| ARFSE (arXiv:2606.20001)                                          | complex STFT | 1–5   | 3.00 / 19.9                  | time-embedding-free rectified flow, RTF 0.02                                                                                                                                                            |
+| "Rethinking Flow & Diffusion Bridges" (AAAI-26, arXiv:2602.18355) | —            | 1–5   | —                            | **unifying analysis**: with a data-prediction loss, a bridge model is an *augmented predictive model*; 1-step sampling ≡ prediction; TF-GridNet-backbone bridge at 2.2M params matches/beats NCSN++ 65M |
 
 Key facts, corroborated across ≥6 independent groups:
 
 1. **Data-to-data beats gaussian-endpoint for paired enhancement** — on fidelity metrics and, critically, on low-NFE robustness. Gaussian-prior score models collapse at 1 step (PESQ ≈ 1.0–1.8); bridges degrade gracefully or not at all.
-2. **1-step inference is solved** (four independent routes: DP-bridges, MeanFlow, consistency-trajectory distillation, straightened rectified flow).
-3. **The "Rethinking" ceiling**: in-domain and with DP loss, the bridge ≈ a noise-curriculum-regularized predictive model. The *genuine* generative payoff is OOD robustness and perceptual naturalness — exactly the axes where predictive denoisers hurt.
-4. Training is stable (plain regression on x₀ targets over a noise curriculum) — no discriminators, no score-matching schedule pathologies. Aux PESQ-style losses Goodhart (SI-SDR collapse) unless balanced.
+1. **1-step inference is solved** (four independent routes: DP-bridges, MeanFlow, consistency-trajectory distillation, straightened rectified flow).
+1. **The "Rethinking" ceiling**: in-domain and with DP loss, the bridge ≈ a noise-curriculum-regularized predictive model. The *genuine* generative payoff is OOD robustness and perceptual naturalness — exactly the axes where predictive denoisers hurt.
+1. Training is stable (plain regression on x₀ targets over a noise curriculum) — no discriminators, no score-matching schedule pathologies. Aux PESQ-style losses Goodhart (SI-SDR collapse) unless balanced.
 
 ### 2.3 GANs
 
-| System | Domain | SR | Notes |
-|---|---|---|---|
-| SEGAN (2017, arXiv:1703.09452) → MetricGAN+ (2021) → CMGAN (TASLP 2024, arXiv:2209.11112) | wave → STFT | 16 kHz | metric-discriminator line; strong PESQ (CMGAN 3.41 @ 1.83M) but stuck at 16 kHz |
-| DEMUCS denoiser (Interspeech 2020, arXiv:2006.12847) | waveform | 16 kHz | **pure regression: L1 + multi-res STFT — the losses this repo already uses** |
-| HiFi-GAN denoise (Su et al. 2020, arXiv:2006.05694), HiFi-GAN-2 (WASPAA 2021) | waveform | 48 kHz | adversarial + deep-feature matching; studio quality |
-| HiFi++ (ICASSP 2023, arXiv:2203.13086) | waveform | 48 kHz | generator later reused by FINALLY |
-| **FINALLY** (NeurIPS 2024, arXiv:2410.05920) | waveform | 48 kHz | MOS 4.63, RTF 0.03; proves LS-GAN + deterministic generator is **mode-seeking** → hallucinates less than distribution-covering diffusion (PhER 0.14 vs UNIVERSE 0.20); 3-stage training: regression pretrain → adversarial finetune (MS-STFT discriminators, LR warm-up) → 48 kHz upsample |
-| DeepFilterGAN (arXiv:2505.23515) | full-band | 48 kHz | real-time predictive→GAN regeneration |
+| System                                                                                    | Domain      | SR     | Notes                                                                                                                                                                                                                                                                                      |
+| ----------------------------------------------------------------------------------------- | ----------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| SEGAN (2017, arXiv:1703.09452) → MetricGAN+ (2021) → CMGAN (TASLP 2024, arXiv:2209.11112) | wave → STFT | 16 kHz | metric-discriminator line; strong PESQ (CMGAN 3.41 @ 1.83M) but stuck at 16 kHz                                                                                                                                                                                                            |
+| DEMUCS denoiser (Interspeech 2020, arXiv:2006.12847)                                      | waveform    | 16 kHz | **pure regression: L1 + multi-res STFT — the losses this repo already uses**                                                                                                                                                                                                               |
+| HiFi-GAN denoise (Su et al. 2020, arXiv:2006.05694), HiFi-GAN-2 (WASPAA 2021)             | waveform    | 48 kHz | adversarial + deep-feature matching; studio quality                                                                                                                                                                                                                                        |
+| HiFi++ (ICASSP 2023, arXiv:2203.13086)                                                    | waveform    | 48 kHz | generator later reused by FINALLY                                                                                                                                                                                                                                                          |
+| **FINALLY** (NeurIPS 2024, arXiv:2410.05920)                                              | waveform    | 48 kHz | MOS 4.63, RTF 0.03; proves LS-GAN + deterministic generator is **mode-seeking** → hallucinates less than distribution-covering diffusion (PhER 0.14 vs UNIVERSE 0.20); 3-stage training: regression pretrain → adversarial finetune (MS-STFT discriminators, LR warm-up) → 48 kHz upsample |
+| DeepFilterGAN (arXiv:2505.23515)                                                          | full-band   | 48 kHz | real-time predictive→GAN regeneration                                                                                                                                                                                                                                                      |
 
 GANs are the strongest *single-pass waveform 48 kHz* systems today, but every report flags adversarial training fragility (replay buffers, LR warm-ups, discriminator-choice sensitivity; SBCTM removed its GAN loss for exactly this reason). The winning GAN recipe is always **adversarial fine-tuning on top of a regression-pretrained model** — i.e., a *stage*, not a family. It composes with any base model, including a bridge.
 
@@ -86,12 +86,13 @@ Meanwhile, single-pass waveform conv-U-Nets at 48 kHz demonstrably work (HiFi-GA
 **Family: Schrödinger-bridge-style conditional flow matching with a data-prediction objective ("bridge-FM").** Reasons, in order:
 
 1. **Strict superset of the current repo.** At NFE=1 the sampler evaluates `f(y, y, t=1)` — a predictive denoiser with an extra input channel and time embedding. The ICFM study (arXiv:2508.20584) validated exactly this "direct data prediction" trick at PESQ 3.05 @ 1 step. Nothing is lost relative to `UNet1D`; multi-step refinement and stochastic sampling are gained.
-2. **Loss reuse.** The DP objective is `distance(x̂₀, x₀)` averaged over bridge times — the repo's `nn.L1Loss` + `MultiResolutionSTFTLoss` apply verbatim as that distance. No new loss code, no discriminator, no differentiable-PESQ Goodharting.
-3. **Training stability.** It is plain regression over a noise curriculum. Every GAN alternative carries documented instability; every gaussian-prior diffusion alternative carries low-NFE collapse and hallucination baggage that bridges empirically reduce (NVIDIA SB: ~half the WER of SGMSE+).
-4. **Inference cost fits the repo's deployment story** (ONNX export, CPU-viable): k ∈ {1,…,8} U-Net passes, user-selectable at inference time with one knob — quality/latency dial for free.
-5. **Best-supported upgrade paths.** Adversarial fine-tune stage (FINALLY recipe) and consistency-trajectory distillation (SBCTM) both apply *on top of* a trained bridge without changing the architecture.
+1. **Loss reuse.** The DP objective is `distance(x̂₀, x₀)` averaged over bridge times — the repo's `nn.L1Loss` + `MultiResolutionSTFTLoss` apply verbatim as that distance. No new loss code, no discriminator, no differentiable-PESQ Goodharting.
+1. **Training stability.** It is plain regression over a noise curriculum. Every GAN alternative carries documented instability; every gaussian-prior diffusion alternative carries low-NFE collapse and hallucination baggage that bridges empirically reduce (NVIDIA SB: ~half the WER of SGMSE+).
+1. **Inference cost fits the repo's deployment story** (ONNX export, CPU-viable): k ∈ {1,…,8} U-Net passes, user-selectable at inference time with one knob — quality/latency dial for free.
+1. **Best-supported upgrade paths.** Adversarial fine-tune stage (FINALLY recipe) and consistency-trajectory distillation (SBCTM) both apply *on top of* a trained bridge without changing the architecture.
 
 Why not the alternatives as the *first* generative model:
+
 - **Pure diffusion (SGMSE+-style):** dominated by bridges on every axis relevant here (NFE, prior mismatch, WER); needs 30–60 NFE and correctors; hallucination-prone.
 - **GAN-first:** best single-pass quality, but adversarial training fragility is a poor fit for a lean OSS codebase, and it forecloses the multi-step generative capability. Better as a later fine-tuning stage.
 - **Latent/codec generative:** highest ceiling, heaviest dependency footprint (codec + SSL encoder + possibly vocoder); contradicts the repo's end-to-end waveform identity.
@@ -173,18 +174,18 @@ New `FlowMatchingLightningModule` (sibling of `DenoisersLightningModule`, same m
 ### 5.5 Roadmap (each phase independently shippable)
 
 1. **Phase 1 — bridge-FM core** (this proposal): `FlowUNet1D` + sampler + Lightning module; ship `flowunet1d-vctk-24khz`, then 48 kHz.
-2. **Phase 2 — StoRM-style regeneration (optional, cheap):** initialize the bridge from the *existing pretrained* `unet1d-vctk-48khz` output instead of raw `y` (one config flag: endpoints become `(x₀, D(y))`). Reuses published repo assets; documented to remove artifacts and cut steps further.
-3. **Phase 3 — adversarial fine-tune (optional):** FINALLY-recipe MS-STFT discriminators on top of the frozen-ish bridge at N=1, for single-pass studio quality. Contained blast radius: a training stage, not an architecture.
-4. **Phase 4 — one-step guarantee (optional):** MeanFlow-style average-velocity or SBCTM-style consistency-trajectory distillation if N=1 quality without it proves insufficient.
+1. **Phase 2 — StoRM-style regeneration (optional, cheap):** initialize the bridge from the *existing pretrained* `unet1d-vctk-48khz` output instead of raw `y` (one config flag: endpoints become `(x₀, D(y))`). Reuses published repo assets; documented to remove artifacts and cut steps further.
+1. **Phase 3 — adversarial fine-tune (optional):** FINALLY-recipe MS-STFT discriminators on top of the frozen-ish bridge at N=1, for single-pass studio quality. Contained blast radius: a training stage, not an architecture.
+1. **Phase 4 — one-step guarantee (optional):** MeanFlow-style average-velocity or SBCTM-style consistency-trajectory distillation if N=1 quality without it proves insufficient.
 
 ### 5.6 Risks & fallbacks
 
-| Risk | Signal | Mitigation |
-|---|---|---|
+| Risk                                                            | Signal                                           | Mitigation                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------- | ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Waveform bridge underperforms at 48 kHz (unpublished territory) | 48 kHz val DNSMOS ≤ predictive baseline at all N | Phase-2 regeneration mode (predictive front-end absorbs the fullband burden); or complex-STFT front-end behind the same config (SGMSE+-EARS settings: 1534-pt FFT, hop 384) — the U-Net becomes 2-channel-complex-in/out, everything else unchanged |
-| Hallucination at very low SNR | WER probe ↑ vs input | deterministic sampling default; smaller σ_max; Phase 2 anchoring |
-| SI-SDR regression alarms users | SI-SDR drop > ~2 dB vs `UNet1D` | document the tradeoff; N=1 deterministic mode as the "fidelity" preset |
-| JVP/curriculum complexity creep (MeanFlow route) | — | not needed in Phase 1; plain DP-bridge is curriculum-free |
+| Hallucination at very low SNR                                   | WER probe ↑ vs input                             | deterministic sampling default; smaller σ_max; Phase 2 anchoring                                                                                                                                                                                    |
+| SI-SDR regression alarms users                                  | SI-SDR drop > ~2 dB vs `UNet1D`                  | document the tradeoff; N=1 deterministic mode as the "fidelity" preset                                                                                                                                                                              |
+| JVP/curriculum complexity creep (MeanFlow route)                | —                                                | not needed in Phase 1; plain DP-bridge is curriculum-free                                                                                                                                                                                           |
 
 ## 6. Key references
 
