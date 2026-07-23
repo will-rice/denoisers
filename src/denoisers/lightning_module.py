@@ -1,6 +1,6 @@
 """Denoisers lightning module trainer."""
 
-from typing import Any
+from typing import Any, cast
 
 import torch
 import torchaudio
@@ -23,6 +23,7 @@ from transformers import PreTrainedModel
 from denoisers.datasets.audio import Batch
 from denoisers.losses import MultiResolutionSTFTLoss
 from denoisers.metrics import DNSMOS
+from denoisers.modeling.flowunet1d.model import FlowUNet1DModel
 from denoisers.utils import log_audio_batch, plot_image_from_audio
 
 
@@ -62,7 +63,7 @@ class DenoisersLightningModule(LightningModule):
             }
         )
         self.dns_mos = DNSMOS()
-        self.autoencoder: bool = self.model.config.autoencoder
+        self.autoencoder: bool = getattr(self.model.config, "autoencoder", True)
         self.sync_dist = sync_dist
         self.use_ema = use_ema
         self.push_to_hub = push_to_hub
@@ -180,3 +181,76 @@ class DenoisersLightningModule(LightningModule):
         optimizer = torch.optim.AdamW(self.parameters(), lr=1e-4, weight_decay=1e-2)
         scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.999875)
         return {"optimizer": optimizer, "lr_scheduler": scheduler}
+
+
+class FlowMatchingLightningModule(DenoisersLightningModule):
+    """Lightning module for bridge flow-matching denoisers.
+
+    Training draws a bridge time t ~ U(0, 1), corrupts the clean waveform
+    along the Brownian bridge between clean and noisy, and regresses the
+    clean endpoint with the same L1 + multi-resolution STFT losses used by
+    the predictive models. Validation runs the model's full sampler.
+    """
+
+    def training_step(self, batch: Batch, batch_idx: Any) -> torch.Tensor:
+        """Train step."""
+        model = cast(FlowUNet1DModel, self.model)
+        audio, noisy = batch.audio, batch.noisy
+        batch_size = audio.shape[0]
+
+        t = torch.rand(batch_size, device=audio.device, dtype=audio.dtype)
+        sigma = model.bridge_sigma(t)[:, None, None]
+        t_expanded = t[:, None, None]
+        sample = (
+            (1.0 - t_expanded) * audio
+            + t_expanded * noisy
+            + sigma * torch.randn_like(audio)
+        )
+
+        preds = model.predict_clean(sample, noisy, t)
+
+        l1_loss = self.loss_fn(preds, audio)
+        stft_loss = self.stft_loss(preds.float(), audio.float())
+
+        loss = l1_loss + stft_loss
+
+        metrics = self.train_metrics(preds, audio)
+
+        self.log("train_loss", loss, prog_bar=True, sync_dist=self.sync_dist)
+        self.log_dict(
+            {**metrics, "train_stft_loss": stft_loss, "train_l1_loss": l1_loss},
+            sync_dist=self.sync_dist,
+        )
+
+        return loss
+
+    def validation_step(self, batch: Any, batch_idx: Any) -> torch.Tensor:
+        """Val step."""
+        if self.use_ema:
+            outputs = self.ema_model(batch.noisy)
+        else:
+            outputs = self.model(batch.noisy)
+
+        l1_loss = self.loss_fn(outputs.audio, batch.audio)
+        stft_loss = self.stft_loss(outputs.audio.float(), batch.audio.float())
+
+        loss = l1_loss + stft_loss
+
+        metrics = self.val_metrics(outputs.audio, batch.audio)
+
+        self.log("val_loss", loss, prog_bar=True, sync_dist=self.sync_dist)
+        self.log_dict(
+            {**metrics, "val_stft_loss": stft_loss, "val_l1_loss": l1_loss},
+            sync_dist=self.sync_dist,
+        )
+
+        self.last_val_batch = {
+            "outputs": (
+                batch.audio.detach(),
+                batch.noisy.detach(),
+                outputs.audio.detach(),
+                batch.lengths.detach(),
+            ),
+        }
+
+        return loss

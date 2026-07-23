@@ -9,7 +9,10 @@ from pytorch_lightning import Trainer, callbacks, loggers, seed_everything
 
 from denoisers.datamodule import DenoisersDataModule
 from denoisers.datasets.audio import AudioDataset
-from denoisers.lightning_module import DenoisersLightningModule
+from denoisers.lightning_module import (
+    DenoisersLightningModule,
+    FlowMatchingLightningModule,
+)
 from denoisers.modeling import CONFIGS, MODELS
 
 if torch.cuda.is_available():
@@ -51,7 +54,12 @@ def main() -> None:
 
     config = CONFIGS[args.model]()
     model = MODELS[args.model](config)
-    lightning_module = DenoisersLightningModule(
+    lightning_module_cls = (
+        FlowMatchingLightningModule
+        if args.model == "flowunet1d"
+        else DenoisersLightningModule
+    )
+    lightning_module = lightning_module_cls(
         model,
         sync_dist=args.num_devices > 1,
         use_ema=args.ema,
