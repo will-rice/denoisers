@@ -1,0 +1,29 @@
+{
+  "activation": "leaky_relu",
+  "architectures": [
+    "WaveUNetModel"
+  ],
+  "autoencoder": false,
+  "downsample_kernel_size": 15,
+  "dropout": 0.1,
+  "in_channels": [
+    24,
+    48,
+    72,
+    96,
+    120,
+    144,
+    168,
+    192,
+    216,
+    240,
+    264,
+    288
+  ],
+  "max_length": 163840,
+  "model_type": "waveunet",
+  "sample_rate": 48000,
+  "torch_dtype": "float32",
+  "transformers_version": "4.34.0",
+  "upsample_kernel_size": 5
+}
