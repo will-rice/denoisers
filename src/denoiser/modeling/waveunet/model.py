@@ -7,6 +7,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 from torchmetrics import SignalNoiseRatio
+from diffusers import UNet1DModel
 
 from src.denoiser import utils
 from src.denoiser.datasets import Batch
@@ -111,89 +112,18 @@ class WaveUNet(pl.LightningModule):
     """WaveUNet Model."""
 
     def __init__(
-        self, n_layers: int = 12, channels_interval: int = 24, autoencoder: bool = False
+        self, autoencoder: bool = False
     ) -> None:
         super().__init__()
         self.save_hyperparameters()
 
-        self.n_layers = n_layers
-        self.channels_interval = channels_interval
-        self.autoencoder = autoencoder
-
-        encoder_in_channels_list = [1] + [
-            i * self.channels_interval for i in range(1, self.n_layers)
-        ]
-        encoder_out_channels_list = [
-            i * self.channels_interval for i in range(1, self.n_layers + 1)
-        ]
-
-        # 1=>2=>3=>4=>5=>6=>7=>8=>9=>10=>11=>12
-        # 16384=>8192=>4096=>2048=>1024=>512=>256=>128=>64=>32=>16=>8=>4
-        self.encoder = nn.ModuleList()
-        for i in range(self.n_layers):
-            self.encoder.append(
-                DownSamplingLayer(
-                    channel_in=encoder_in_channels_list[i],
-                    channel_out=encoder_out_channels_list[i],
-                )
-            )
-
-        self.middle = nn.Sequential(
-            nn.Conv1d(
-                self.n_layers * self.channels_interval,
-                self.n_layers * self.channels_interval,
-                15,
-                stride=1,
-                padding=7,
-            ),
-            nn.BatchNorm1d(self.n_layers * self.channels_interval),
-            nn.LeakyReLU(0.2, inplace=True),
-        )
-
-        decoder_in_channels_list = [
-            (2 * i + 1) * self.channels_interval for i in range(1, self.n_layers)
-        ] + [2 * self.n_layers * self.channels_interval]
-        decoder_in_channels_list = decoder_in_channels_list[::-1]
-        decoder_out_channels_list = encoder_out_channels_list[::-1]
-        self.decoder = nn.ModuleList()
-        for i in range(self.n_layers):
-            self.decoder.append(
-                UpSamplingLayer(
-                    channel_in=decoder_in_channels_list[i],
-                    channel_out=decoder_out_channels_list[i],
-                )
-            )
-
-        self.out = nn.Sequential(
-            nn.Conv1d(1 + self.channels_interval, 1, kernel_size=1, stride=1), nn.Tanh()
-        )
+        self.unet = UNet1DModel(in_channels=1, out_channels=1)
         self.loss_fn = nn.L1Loss()
         self.snr = SignalNoiseRatio()
 
     def forward(self, inputs: Tensor) -> Tensor:
         """Forward Pass."""
-        out = inputs
-
-        skip_connections = []
-        for layer in self.encoder:
-            out = layer(out)
-            skip_connections.append(out)
-            out = out[:, :, ::2]
-
-        out = self.middle(out)
-
-        # Down Sampling
-        for i, layer in enumerate(self.decoder):
-            # [batch_size, T * 2, channels]
-            out = F.interpolate(
-                out, scale_factor=2.0, mode="linear", align_corners=True
-            )
-            # Skip Connection
-            out = torch.cat([out, skip_connections[self.n_layers - i - 1]], dim=1)
-            out = layer(out)
-
-        out = torch.cat([out, inputs], dim=1)
-        out = self.out(out)
+        out = self.unet(inputs)
 
         if not self.training:
             out = out.clamp(-1.0, 1.0)

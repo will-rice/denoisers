@@ -19,7 +19,7 @@ def main() -> None:
     parser.add_argument(
         "--num_devices", default=1 if torch.cuda.is_available() else None
     )
-    parser.add_argument("--batch_size", default=32, type=int)
+    parser.add_argument("--batch_size", default=64, type=int)
     parser.add_argument("--seed", default=1234, type=int)
     parser.add_argument("--debug", default=False, type=bool)
     parser.add_argument("--log_path", default="logs", type=Path)
@@ -48,7 +48,6 @@ def main() -> None:
         filename="{step}",
         save_last=True,
     )
-    swa_callback = pl.callbacks.StochasticWeightAveraging(swa_lrs=1e-6)
     lr_monitor = pl.callbacks.LearningRateMonitor(logging_interval="step")
 
     pretrained = args.checkpoint_path
@@ -61,7 +60,8 @@ def main() -> None:
         devices=args.num_devices,
         logger=logger,
         precision=16 if torch.cuda.is_available() else 32,
-        callbacks=[checkpoint_callback, swa_callback, lr_monitor],
+        accumulate_grad_batches=2,
+        callbacks=[checkpoint_callback, lr_monitor],
         track_grad_norm=True,
     )
 
