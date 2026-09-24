@@ -43,3 +43,26 @@ def test_model() -> None:
 
     assert isinstance(recon, torch.Tensor)
     assert audio.shape == recon.shape
+
+
+def test_legacy_layout() -> None:
+    """Test the pre-activation layout used by denoisers <= 0.1.8 checkpoints."""
+    config = UNet1DConfig(
+        max_length=16384,
+        channels=(4, 8, 16),
+        num_groups=2,
+        norm_type="group",
+        legacy_layout=True,
+    )
+    model = UNet1DModel(config)
+    model.eval()
+
+    res_block = model.model.encoder_layers[0].res_block
+    assert res_block.norm_1.norm.num_channels == 4
+    assert res_block.norm_2.norm.num_channels == 8
+
+    audio = torch.randn(1, 1, config.max_length)
+    with torch.no_grad():
+        recon = model(audio).audio
+
+    assert audio.shape == recon.shape

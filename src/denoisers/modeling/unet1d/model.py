@@ -33,6 +33,7 @@ class UNet1DModel(PreTrainedModel):
             activation=config.activation,
             dropout=config.dropout,
             norm_type=config.norm_type,
+            legacy_layout=config.legacy_layout,
         )
         self.post_init()
 
@@ -71,6 +72,7 @@ class UNet1D(nn.Module):
         activation: str = "silu",
         dropout: float = 0.1,
         norm_type: str = "layer",
+        legacy_layout: bool = False,
     ) -> None:
         super().__init__()
         self.in_conv = nn.Conv1d(
@@ -89,6 +91,7 @@ class UNet1D(nn.Module):
                     dropout=dropout,
                     activation=activation,
                     norm_type=norm_type,
+                    legacy_layout=legacy_layout,
                 )
                 for i in range(len(channels) - 1)
             ],
@@ -101,6 +104,7 @@ class UNet1D(nn.Module):
             dropout=dropout,
             activation=activation,
             norm_type=norm_type,
+            legacy_layout=legacy_layout,
         )
         self.decoder_layers = nn.ModuleList(
             [
@@ -112,6 +116,7 @@ class UNet1D(nn.Module):
                     dropout=dropout,
                     activation=activation,
                     norm_type=norm_type,
+                    legacy_layout=legacy_layout,
                 )
                 for i in reversed(range(len(channels) - 1))
             ],

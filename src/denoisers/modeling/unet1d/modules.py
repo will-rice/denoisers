@@ -24,6 +24,7 @@ class DownBlock1D(nn.Module):
         activation: str = "silu",
         dropout: float = 0.0,
         norm_type: str = "layer",
+        legacy_layout: bool = False,
     ) -> None:
         super().__init__()
         self.res_block = ResBlock1D(
@@ -34,6 +35,7 @@ class DownBlock1D(nn.Module):
             activation=activation,
             dropout=dropout,
             norm_type=norm_type,
+            legacy_layout=legacy_layout,
         )
         self.downsample = Downsample1D(
             in_channels=out_channels,
@@ -61,6 +63,7 @@ class UpBlock1D(nn.Module):
         activation: str = "silu",
         dropout: float = 0.0,
         norm_type: str = "layer",
+        legacy_layout: bool = False,
     ) -> None:
         super().__init__()
         self.res_block = ResBlock1D(
@@ -71,6 +74,7 @@ class UpBlock1D(nn.Module):
             activation=activation,
             dropout=dropout,
             norm_type=norm_type,
+            legacy_layout=legacy_layout,
         )
         self.upsample = Upsample1D(
             in_channels=out_channels,
@@ -87,7 +91,11 @@ class UpBlock1D(nn.Module):
 
 
 class ResBlock1D(nn.Module):
-    """Residual Block for 1D data."""
+    """Residual Block for 1D data.
+
+    With ``legacy_layout`` the block is pre-activation (norm -> act -> conv), the
+    layout used by checkpoints saved with denoisers <= 0.1.8.
+    """
 
     def __init__(
         self,
@@ -98,8 +106,11 @@ class ResBlock1D(nn.Module):
         activation: str = "silu",
         dropout: float = 0.0,
         norm_type: str = "layer",
+        legacy_layout: bool = False,
     ) -> None:
         super().__init__()
+        self.legacy_layout = legacy_layout
+        norm_1_channels = in_channels if legacy_layout else out_channels
         self.conv_1 = nn.Conv1d(
             in_channels,
             out_channels,
@@ -107,8 +118,10 @@ class ResBlock1D(nn.Module):
             padding=kernel_size // 2,
             bias=False,
         )
-        self.norm_1 = Normalization(out_channels, name=norm_type, num_groups=num_groups)
-        self.activation_1 = Activation(activation, channels=out_channels)
+        self.norm_1 = Normalization(
+            norm_1_channels, name=norm_type, num_groups=num_groups
+        )
+        self.activation_1 = Activation(activation, channels=norm_1_channels)
         self.dropout = nn.Dropout(dropout)
         self.conv_2 = nn.Conv1d(
             out_channels,
@@ -124,6 +137,15 @@ class ResBlock1D(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         """Forward Pass."""
         residual = self.residual(x)
+        if self.legacy_layout:
+            x = self.norm_1(x)
+            x = self.activation_1(x)
+            x = self.conv_1(x)
+            x = self.norm_2(x)
+            x = self.activation_2(x)
+            x = self.dropout(x)
+            x = self.conv_2(x)
+            return x + residual
         x = self.conv_1(x)
         x = self.norm_1(x)
         x = self.activation_1(x)
@@ -148,8 +170,10 @@ class MidBlock1D(nn.Module):
         activation: str = "silu",
         dropout: float = 0.0,
         norm_type: str = "layer",
+        legacy_layout: bool = False,
     ) -> None:
         super().__init__()
+        self.legacy_layout = legacy_layout
         self.res_block_1 = ResBlock1D(
             in_channels=in_channels,
             out_channels=out_channels,
@@ -158,6 +182,7 @@ class MidBlock1D(nn.Module):
             activation=activation,
             dropout=dropout,
             norm_type=norm_type,
+            legacy_layout=legacy_layout,
         )
         self.attention = nn.MultiheadAttention(out_channels, num_heads=num_heads)
         self.res_block_2 = ResBlock1D(
@@ -168,6 +193,7 @@ class MidBlock1D(nn.Module):
             activation=activation,
             dropout=dropout,
             norm_type=norm_type,
+            legacy_layout=legacy_layout,
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -177,6 +203,7 @@ class MidBlock1D(nn.Module):
         x = x.transpose(2, 1)
         x = self.attention(x, x, x)[0]
         x = x.transpose(2, 1)
-        x = x + residual
+        if not self.legacy_layout:
+            x = x + residual
         x = self.res_block_2(x)
         return x
