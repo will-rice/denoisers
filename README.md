@@ -42,7 +42,7 @@ from denoisers.inference import denoise_file
 
 model = WaveUNetModel.from_pretrained("wrice/waveunet-vctk-24khz")
 
-# Resamples to the model's rate, downmixes to mono, and denoises in chunks.
+# Resamples to the model's rate, downmixes to mono, and streams the file in chunks.
 denoise_file(model, "noisy_audio.wav", "clean_audio.wav")
 ```
 

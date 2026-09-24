@@ -1,11 +1,12 @@
 """Inference utilities."""
 
+import math
 from pathlib import Path
 
 import torch
 from torch import nn
 from torchcodec.decoders import AudioDecoder
-from torchcodec.encoders import AudioEncoder
+from torchcodec.encoders import Encoder
 from tqdm import tqdm
 
 from denoisers.modeling.unet1d.model import UNet1DModel
@@ -17,9 +18,13 @@ def denoise_file(
     input_path: str | Path,
     output_path: str | Path,
 ) -> None:
-    """Denoise an audio file in chunks of the model's max length.
+    """Denoise an audio file, streaming it in chunks of the model's max length.
 
     The input is resampled to the model's sample rate and downmixed to mono.
+    Only one chunk is decoded, denoised, and encoded at a time, so memory use
+    does not grow with the file's length. Chunks are read by time range, which
+    is sample-exact for formats TorchCodec seeks precisely, such as WAV, FLAC,
+    and MP3.
 
     Args:
         model: Pretrained denoising model.
@@ -29,20 +34,26 @@ def denoise_file(
     """
     sample_rate = model.config.sample_rate
     chunk_size = model.config.max_length
+    chunk_seconds = chunk_size / sample_rate
 
-    audio = (
-        AudioDecoder(input_path, sample_rate=sample_rate, num_channels=1)
-        .get_all_samples()
-        .data
-    )
+    decoder = AudioDecoder(input_path, sample_rate=sample_rate, num_channels=1)
+    begin_seconds = decoder.metadata.begin_stream_seconds
+    duration_seconds = decoder.metadata.duration_seconds
+    if begin_seconds is None or duration_seconds is None:
+        raise ValueError(f"{input_path} does not report its stream duration.")
 
-    denoised = []
-    for chunk in tqdm(audio.split(chunk_size, dim=-1)):
-        padded = nn.functional.pad(chunk, (0, chunk_size - chunk.size(-1)))
-        with torch.no_grad():
-            output = model(padded[None].to(model.device)).audio
-        denoised.append(output[0, :, : chunk.size(-1)])
+    end_seconds = begin_seconds + duration_seconds
 
-    AudioEncoder(
-        torch.cat(denoised, dim=-1).clamp(-1, 1).cpu(), sample_rate=sample_rate
-    ).to_file(output_path)
+    encoder = Encoder()
+    stream = encoder.add_audio(sample_rate=sample_rate, num_channels=1)
+    with encoder.open_file(output_path):
+        # Streams don't always start at 0, so ranges are offset by the start.
+        for i in tqdm(range(math.ceil(duration_seconds / chunk_seconds))):
+            start_seconds = begin_seconds + i * chunk_seconds
+            chunk = decoder.get_samples_played_in_range(
+                start_seconds, min(start_seconds + chunk_seconds, end_seconds)
+            ).data
+            padded = nn.functional.pad(chunk, (0, chunk_size - chunk.size(-1)))
+            with torch.no_grad():
+                output = model(padded[None].to(model.device)).audio
+            stream.add_samples(output[0, :, : chunk.size(-1)].clamp(-1, 1).cpu())
