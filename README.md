@@ -118,6 +118,7 @@ The UNet1D architecture is a custom implementation inspired by modern diffusion 
 - `kernel_size`: Convolution kernel size (default: 3)
 - `activation`: Activation function (default: "silu")
 - `max_length`: Maximum input length (default: 48,000 samples)
+- `legacy_layout`: Use the pre-activation block layout of checkpoints saved with denoisers \<= 0.1.8 (default: False)
 
 ## 🔧 Training Your Own Models
 

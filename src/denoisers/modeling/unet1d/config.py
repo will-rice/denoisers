@@ -6,7 +6,11 @@ from transformers import PretrainedConfig
 
 
 class UNet1DConfig(PretrainedConfig):
-    """Configuration class to store the configuration of a `UNet1DModel`."""
+    """Configuration class to store the configuration of a `UNet1DModel`.
+
+    Set ``legacy_layout`` to load checkpoints saved with denoisers <= 0.1.8, which
+    use pre-activation residual blocks and no residual around mid-block attention.
+    """
 
     model_type = "unet1d"
 
@@ -34,6 +38,7 @@ class UNet1DConfig(PretrainedConfig):
         max_length: int = 48000,
         sample_rate: int = 48000,
         norm_type: str = "layer",
+        legacy_layout: bool = False,
         **kwargs: Any,
     ) -> None:
         self.channels = channels
@@ -45,4 +50,5 @@ class UNet1DConfig(PretrainedConfig):
         self.max_length = max_length
         self.sample_rate = sample_rate
         self.norm_type = norm_type
+        self.legacy_layout = legacy_layout
         super().__init__(**kwargs)
