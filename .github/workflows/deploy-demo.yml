@@ -1,0 +1,37 @@
+# Deploys demo/ to the Hugging Face Space once the release is on PyPI.
+
+name: Deploy Demo
+
+on:
+  workflow_run:
+    workflows: ["Upload Python Package"]
+    types: [completed]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pin the Space to the released package
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "denoisers==$VERSION" > demo/requirements.txt
+      - name: Upload to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install huggingface_hub
+          hf upload wrice/audio_denoiser demo . --repo-type space --commit-message "Deploy denoisers $VERSION"

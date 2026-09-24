@@ -37,40 +37,21 @@ pip install denoisers
 #### Inference with Pre-trained Models
 
 ```python
-import torch
-import torchaudio
 from denoisers import WaveUNetModel
-from torchcodec.decoders import AudioDecoder
-from tqdm import tqdm
+from denoisers.inference import denoise_file
 
-# Load pre-trained model
 model = WaveUNetModel.from_pretrained("wrice/waveunet-vctk-24khz")
 
-# Load and preprocess audio (resamples and converts to mono automatically)
-decoder = AudioDecoder(
-    "noisy_audio.wav",
-    sample_rate=model.config.sample_rate,
-    num_channels=1,
-)
-audio = decoder.get_all_samples().data
+# Resamples to the model's rate, downmixes to mono, and denoises in chunks.
+denoise_file(model, "noisy_audio.wav", "clean_audio.wav")
+```
 
-# Process audio in chunks to handle long files
-chunk_size = model.config.max_length
-padding = abs(audio.size(-1) % chunk_size - chunk_size)
-padded = torch.nn.functional.pad(audio, (0, padding))
+#### Demo
 
-clean = []
-for i in tqdm(range(0, padded.shape[-1], chunk_size)):
-    audio_chunk = padded[:, i : i + chunk_size]
-    with torch.no_grad():
-        clean_chunk = model(audio_chunk[None]).audio
-    clean.append(clean_chunk.squeeze(0))
+Try the models in the [Audio Denoiser Space](https://huggingface.co/spaces/wrice/audio_denoiser). Its source is in `demo/`, and each release deploys it with the released package. To run it locally:
 
-# Concatenate results and remove padding
-denoised = torch.concat(clean, 1)[:, : audio.shape[-1]]
-
-# Save denoised audio
-torchaudio.save("clean_audio.wav", denoised, model.config.sample_rate)
+```bash
+uv run --with gradio python demo/app.py
 ```
 
 #### Available Pre-trained Models
