@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "denoisers"
-version = "0.3.2"
+version = "0.3.3"
 authors = [
   { name="Will Rice", email="wrice20@gmail.com" },
 ]
@@ -36,7 +36,7 @@ dependencies = [
     "pesq>=0.0.4",
     "torch>=2.11.0",
     "torchaudio>=2.11.0",
-    "torchcodec>=0.15.0",
+    "torchcodec>=0.16.0",
     "transformers>=5.4.0",
     "torchvision>=0.26.0",
     "pytorch-lightning>=2.6.5",
