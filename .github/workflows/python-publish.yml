@@ -1,4 +1,5 @@
-# This workflow will upload a Python Package using Twine when a release is created
+# This workflow will upload a Python Package using Twine when a release is created,
+# then deploy demo/ to the Hugging Face Space pinned to that release.
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-python#publishing-to-package-registries
 
 # This workflow uses actions that are not certified by GitHub.
@@ -36,3 +37,32 @@ jobs:
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
+
+  deploy-demo:
+    needs: deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Pin the Space to the released package
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "denoisers==$VERSION" > demo/requirements.txt
+      - name: Wait for the release on PyPI
+        run: |
+          for _ in $(seq 60); do
+            pip download --no-deps --quiet --dest /tmp "denoisers==$VERSION" && exit 0
+            sleep 10
+          done
+          echo "denoisers==$VERSION not on PyPI after 10 minutes" && exit 1
+      - name: Upload demo/ to the Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          pip install huggingface_hub
+          hf upload wrice/audio_denoiser demo . --repo-type space --commit-message "Deploy denoisers $VERSION"
