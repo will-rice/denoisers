@@ -40,8 +40,8 @@ jobs:
         run: |
           uv run --no-sync python -c "import torch; print(f'torch={torch.__version__}'); assert 'cu' not in torch.__version__, 'CUDA torch detected'"
           uv run --no-sync python -c "from torchcodec.decoders import AudioDecoder; print('torchcodec OK')"
-      - name: Run pre-commit hook
+      - name: Run prek hooks
         run: |
-          uv run --no-sync pre-commit run -a
+          uv run --no-sync prek run -a
         env:
           UV_NO_SYNC: "1"

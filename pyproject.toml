@@ -28,7 +28,6 @@ dependencies = [
     "pedalboard>=0.9.22,<0.9.23",  # 0.9.23/0.9.24 cp313 wheels SIGILL on CI runners
     "pydub>=0.25.1",
     "pyroomacoustics>=0.10.1",
-    "pre-commit>=4.6.1",
     "librosa>=0.11.0",
     "audiomentations>=0.43.1",
     "onnxruntime>=1.24.3",
@@ -40,6 +39,7 @@ dependencies = [
     "transformers>=5.4.0",
     "torchvision>=0.26.0",
     "pytorch-lightning>=2.6.5",
+    "prek>=0.5.4",
 ]
 
 [project.urls]

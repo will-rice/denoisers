@@ -244,8 +244,8 @@ cd denoisers
 # Install development dependencies
 pip install -e ".[dev]"
 
-# Install pre-commit hooks
-pre-commit install
+# Install prek git hooks
+prek install
 ```
 
 ### Code Quality
